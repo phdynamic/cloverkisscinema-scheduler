@@ -15,6 +15,30 @@ const postInclude = {
 
 const isAdmin = (req) => req.user.role === 'admin';
 
+// Author/approver details are copied onto the post so credit survives if the
+// person is later removed from the guest list (or changes their handle).
+const authorFields = (u) => ({
+  submittedById: u.id,
+  submittedByDid: u.did,
+  submittedByHandle: u.handle,
+  submittedByName: u.displayName,
+});
+const reviewerFields = (u) => ({
+  reviewedById: u.id,
+  reviewedByDid: u.did,
+  reviewedByHandle: u.handle,
+  reviewedByName: u.displayName,
+  reviewedAt: new Date(),
+});
+const clearReview = {
+  reviewedById: null,
+  reviewedByDid: null,
+  reviewedByHandle: null,
+  reviewedByName: null,
+  reviewedAt: null,
+  reviewNote: null,
+};
+
 // Members only ever see their own posts.
 function visibleTo(req) {
   return isAdmin(req) ? {} : { submittedById: req.user.id };
@@ -54,12 +78,30 @@ function resolveStatus(req, requested, scheduledAt, existing) {
   return 'pending';
 }
 
+// Everyone who has authored a post (manager only), for the "by" filter.
+router.get('/authors', async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Manager access only' });
+    const rows = await prisma.post.findMany({
+      where: { submittedByDid: { not: null } },
+      distinct: ['submittedByDid'],
+      orderBy: { createdAt: 'desc' }, // newest post = most recent handle/name
+      select: { submittedByDid: true, submittedByHandle: true, submittedByName: true },
+    });
+    res.json(rows.map((r) => ({ did: r.submittedByDid, handle: r.submittedByHandle, name: r.submittedByName })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Counts per status, for tab badges.
 router.get('/counts', async (req, res) => {
   try {
+    const where = { ...visibleTo(req) };
+    if (req.query.by && isAdmin(req)) where.submittedByDid = String(req.query.by);
     const rows = await prisma.post.groupBy({
       by: ['status'],
-      where: visibleTo(req),
+      where,
       _count: { _all: true },
     });
     res.json(Object.fromEntries(rows.map((r) => [r.status, r._count._all])));
@@ -70,8 +112,9 @@ router.get('/counts', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { status, from, to } = req.query;
+    const { status, from, to, by } = req.query;
     const where = { ...visibleTo(req) };
+    if (by && isAdmin(req)) where.submittedByDid = String(by);
     if (status) {
       if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Unknown status' });
       where.status = status;
@@ -113,7 +156,9 @@ router.post('/', async (req, res) => {
         accountId: account.id,
         status,
         scheduledAt,
-        submittedById: req.user.id,
+        ...authorFields(req.user),
+        // A post the manager schedules directly counts as approved by them.
+        ...(status === 'scheduled' ? reviewerFields(req.user) : {}),
         threads: threadCreate(threads),
       },
       include: postInclude,
@@ -148,15 +193,10 @@ router.put('/:id', async (req, res) => {
 
     const data = { status, scheduledAt };
     // Moving a post back into review/draft clears the previous verdict.
-    if (['pending', 'draft'].includes(status)) {
-      data.reviewNote = null;
-      data.reviewedAt = null;
-      data.reviewedById = null;
-    }
+    if (['pending', 'draft'].includes(status)) Object.assign(data, clearReview);
     if (status === 'scheduled' && existing.status !== 'scheduled') {
       data.errorMsg = null;
-      data.reviewedAt = new Date();
-      data.reviewedById = req.user.id;
+      Object.assign(data, reviewerFields(req.user), { reviewNote: null });
     }
     if (threads) data.threads = threadCreate(threads);
 
@@ -195,8 +235,7 @@ router.post('/:id/approve', async (req, res) => {
       data: {
         status: 'scheduled',
         scheduledAt,
-        reviewedById: req.user.id,
-        reviewedAt: new Date(),
+        ...reviewerFields(req.user),
         reviewNote: null,
       },
       include: postInclude,
@@ -224,8 +263,7 @@ router.post('/:id/reject', async (req, res) => {
       data: {
         status: 'rejected',
         reviewNote: note,
-        reviewedById: req.user.id,
-        reviewedAt: new Date(),
+        ...reviewerFields(req.user),
       },
       include: postInclude,
     });

@@ -42,3 +42,15 @@ export function graphemeLength(text) {
     return text.length;
   }
 }
+
+// Who wrote / approved a post. Prefer the live user record, fall back to the
+// snapshot saved on the post (which survives the person being removed).
+export function authorOf(p) {
+  const handle = p.submittedBy?.handle || p.submittedByHandle;
+  return handle ? { handle, name: p.submittedBy?.displayName || p.submittedByName || null } : null;
+}
+
+export function approverOf(p) {
+  const handle = p.reviewedBy?.handle || p.reviewedByHandle;
+  return handle ? { handle, name: p.reviewedBy?.displayName || p.reviewedByName || null } : null;
+}
