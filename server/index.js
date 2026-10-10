@@ -17,14 +17,17 @@ for (const dir of [dbDir, uploadDir]) {
 // Basic auth (optional — only if env vars are set)
 if (process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS) {
   const basicAuth = require('express-basic-auth');
+  const authUser = process.env.BASIC_AUTH_USER.trim();
+  const authPass = process.env.BASIC_AUTH_PASS.trim();
   app.use(
     basicAuth({
-      users: { [process.env.BASIC_AUTH_USER]: process.env.BASIC_AUTH_PASS },
+      users: { [authUser]: authPass },
       challenge: true,
       realm: 'SkyQueue',
+      unauthorizedResponse: () => 'Unauthorized — check BASIC_AUTH_USER and BASIC_AUTH_PASS',
     })
   );
-  console.log('[auth] Basic auth enabled');
+  console.log(`[auth] Basic auth enabled for user: "${authUser}"`);
 }
 
 // Middleware

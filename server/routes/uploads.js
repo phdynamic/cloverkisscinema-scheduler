@@ -30,7 +30,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 1 * 1024 * 1024 }, // 1MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB (Bluesky compresses at send time)
   fileFilter: (req, file, cb) => {
     if (ALLOWED_TYPES.includes(file.mimetype)) {
       cb(null, true);
@@ -41,8 +41,22 @@ const upload = multer({
 });
 
 // Upload images (max 4)
-router.post('/', upload.array('images', 4), (req, res) => {
-  try {
+router.post('/', (req, res) => {
+  upload.array('images', 4)(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'File too large. Maximum size is 5MB per image.' });
+      }
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ error: 'Maximum 4 images per upload.' });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
     const files = req.files.map((f) => ({
       path: path.join(UPLOAD_DIR, f.filename),
       filename: f.filename,
@@ -50,9 +64,7 @@ router.post('/', upload.array('images', 4), (req, res) => {
       mimetype: f.mimetype,
     }));
     res.status(201).json(files);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+  });
 });
 
 // Delete file
