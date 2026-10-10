@@ -35,7 +35,7 @@ export default function Admin() {
   };
 
   const remove = async (u) => {
-    if (!confirm(`Remove @${u.handle} from the guest list? They'll be signed out right away. Their posts stay.`)) return;
+    if (!confirm(`Remove @${u.handle} from the guest list? They'll be signed out right away. Their posts stay, and keep their name on them.`)) return;
     try {
       await removeUser(u.id);
       await load();

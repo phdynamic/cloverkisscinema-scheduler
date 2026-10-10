@@ -37,7 +37,11 @@ export const getPosts = (params = {}) => {
   const qs = new URLSearchParams(params).toString();
   return request(`/posts${qs ? `?${qs}` : ''}`);
 };
-export const getPostCounts = () => request('/posts/counts');
+export const getPostCounts = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/posts/counts${qs ? `?${qs}` : ''}`);
+};
+export const getAuthors = () => request('/posts/authors');
 export const getPost = (id) => request(`/posts/${id}`);
 export const createPost = (data) => request('/posts', json('POST', data));
 export const updatePost = (id, data) => request(`/posts/${id}`, json('PUT', data));

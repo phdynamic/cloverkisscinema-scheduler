@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPosts } from '../api';
-import { STATUS_LABELS } from '../labels';
+import { STATUS_LABELS, authorOf } from '../labels';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -119,7 +119,7 @@ export default function Calendar() {
                   <div className="post-meta">
                     <span className={`badge badge-${p.status}`}>{STATUS_LABELS[p.status]}</span>
                     <span>{new Date(p.scheduledAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
-                    {p.submittedBy && <span>@{p.submittedBy.handle}</span>}
+                    {authorOf(p) && <span>@{authorOf(p).handle}</span>}
                   </div>
                   <div className="post-preview">{p.threads[0]?.text?.slice(0, 100) || '(image only)'}</div>
                 </div>

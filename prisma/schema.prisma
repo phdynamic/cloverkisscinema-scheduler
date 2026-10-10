@@ -65,8 +65,15 @@ model Post {
   errorMsg      String?
   submittedById Int?
   submittedBy   User?     @relation("PostSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  // Snapshot of the author, so credit survives if they're removed from the guest list.
+  submittedByDid    String?
+  submittedByHandle String?
+  submittedByName   String?
   reviewedById  Int?
   reviewedBy    User?     @relation("PostReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedByDid    String?
+  reviewedByHandle String?
+  reviewedByName   String?
   reviewedAt    DateTime?
   reviewNote    String?
   threads       Thread[]

@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getPosts, deletePost, updatePost, approvePost, rejectPost } from '../api';
-import { STATUS_LABELS, TAB_ORDER, TAB_HINTS, formatWhen, toLocalInput, fromLocalInput } from '../labels';
+import { getPosts, getPostCounts, getAuthors, deletePost, updatePost, approvePost, rejectPost } from '../api';
+import {
+  STATUS_LABELS,
+  TAB_ORDER,
+  TAB_HINTS,
+  formatWhen,
+  toLocalInput,
+  fromLocalInput,
+  authorOf,
+  approverOf,
+} from '../labels';
 import Modal from './Modal';
 
 export default function Queue({ me, counts, onChange }) {
@@ -9,6 +18,9 @@ export default function Queue({ me, counts, onChange }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const tab = TAB_ORDER.includes(params.get('tab')) ? params.get('tab') : isAdmin && counts.pending ? 'pending' : 'scheduled';
+  const by = isAdmin ? params.get('by') || '' : '';
+  const [authors, setAuthors] = useState([]);
+  const [tabCounts, setTabCounts] = useState(counts);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -20,17 +32,31 @@ export default function Queue({ me, counts, onChange }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPosts(await getPosts({ status: tab }));
+      const filter = by ? { by } : {};
+      const [list, countsNow] = await Promise.all([getPosts({ status: tab, ...filter }), getPostCounts(filter)]);
+      setPosts(list);
+      setTabCounts(countsNow);
       setError('');
     } catch (err) {
       setError(err.message);
     }
     setLoading(false);
-  }, [tab]);
+  }, [tab, by]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (isAdmin) getAuthors().then(setAuthors).catch(() => {});
+  }, [isAdmin, posts.length]);
+
+  const setParam = (key, value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setParams(next);
+  };
 
   const refresh = async () => {
     await load();
@@ -154,13 +180,29 @@ export default function Queue({ me, counts, onChange }) {
             aria-selected={tab === t}
             title={TAB_HINTS[t]}
             className={tab === t ? 'active' : ''}
-            onClick={() => setParams({ tab: t })}
+            onClick={() => setParam('tab', t)}
           >
             {STATUS_LABELS[t]}
-            {counts[t] > 0 && <span className="count">{counts[t]}</span>}
+            {tabCounts[t] > 0 && <span className="count">{tabCounts[t]}</span>}
           </button>
         ))}
       </div>
+
+      {isAdmin && authors.length > 0 && (
+        <div className="form-group" style={{ maxWidth: 320, marginBottom: 16 }}>
+          <label className="label" htmlFor="by-filter">
+            Show posts by
+          </label>
+          <select id="by-filter" value={by} onChange={(e) => setParam('by', e.target.value)}>
+            <option value="">Everyone</option>
+            {authors.map((a) => (
+              <option key={a.did} value={a.did}>
+                {a.name ? `${a.name} (@${a.handle})` : `@${a.handle}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <div className="note" role="alert" style={{ marginBottom: 12 }}>
@@ -178,8 +220,18 @@ export default function Queue({ me, counts, onChange }) {
             <div className="post-info">
               <div className="post-meta">
                 <span className={`badge badge-${p.status}`}>{STATUS_LABELS[p.status]}</span>
-                {isAdmin && p.submittedBy && <span>by @{p.submittedBy.handle}</span>}
+                {isAdmin && (
+                  <span title="Who wrote this post">
+                    by {authorOf(p) ? `@${authorOf(p).handle}` : 'unknown author'}
+                  </span>
+                )}
                 <span>{formatWhen(p.sentAt || p.scheduledAt)}</span>
+                {['scheduled', 'sent', 'failed'].includes(p.status) && approverOf(p) && (
+                  <span title={p.reviewedAt ? `Approved ${formatWhen(p.reviewedAt)}` : undefined}>
+                    approved by @{approverOf(p).handle}
+                    {p.reviewedAt && ` · ${formatWhen(p.reviewedAt)}`}
+                  </span>
+                )}
                 {p.threads.length > 1 && <span>{p.threads.length}-post thread</span>}
                 {imageCount(p) > 0 && <span>{imageCount(p)} image{imageCount(p) > 1 ? 's' : ''}</span>}
               </div>
