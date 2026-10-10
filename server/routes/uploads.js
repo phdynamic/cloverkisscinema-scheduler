@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/uploads';
+const { UPLOAD_DIR } = require('../lib/config');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -67,9 +67,10 @@ router.post('/', (req, res) => {
   });
 });
 
-// Delete file
+// Delete file (manager only: uploads aren't tracked per user)
 router.delete('/', (req, res) => {
   try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Manager access only' });
     const { filePath } = req.body;
     if (!filePath) {
       return res.status(400).json({ error: 'filePath is required' });
@@ -77,7 +78,7 @@ router.delete('/', (req, res) => {
 
     // Security: ensure the path is within UPLOAD_DIR
     const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(path.resolve(UPLOAD_DIR))) {
+    if (!resolved.startsWith(UPLOAD_DIR + path.sep)) {
       return res.status(403).json({ error: 'Invalid file path' });
     }
 

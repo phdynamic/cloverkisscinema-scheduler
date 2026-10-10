@@ -1,318 +1,253 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import {
-  getAccounts,
-  getPost,
-  createPost,
-  updatePost,
-  uploadImages,
-  getTemplates,
-  createTemplate,
-} from '../api';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { getPost, createPost, updatePost, uploadImages, getTemplates, createTemplate } from '../api';
+import { STATUS_LABELS, graphemeLength, toLocalInput, fromLocalInput } from '../labels';
+import Modal from './Modal';
 
-function graphemeLength(text) {
-  try {
-    return [...new Intl.Segmenter().segment(text)].length;
-  } catch {
-    return text.length;
-  }
-}
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-const emptySegment = () => ({ text: '', images: [], localFiles: [] });
+let uidCounter = 0;
+const newSegment = (text = '', images = []) => ({ uid: ++uidCounter, text, images });
 
-export default function Composer() {
+export default function Composer({ me, onChange }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [accounts, setAccounts] = useState([]);
-  const [accountId, setAccountId] = useState('');
-  const [threads, setThreads] = useState([emptySegment()]);
-  const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleTime, setScheduleTime] = useState('');
+  const location = useLocation();
+  const [search] = useSearchParams();
+  const isAdmin = me.user.role === 'admin';
+
+  const [threads, setThreads] = useState(() => [newSegment()]);
+  const [status, setStatus] = useState(null); // existing post's status
+  const [reviewNote, setReviewNote] = useState('');
+  const [when, setWhen] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [templates, setTemplates] = useState([]);
-  const [templateName, setTemplateName] = useState('');
+  const [loaded, setLoaded] = useState(!id);
+  const [templates, setTemplates] = useState(null);
+  const fileInputs = useRef({});
 
-  useEffect(() => {
-    getAccounts().then((data) => {
-      setAccounts(data);
-      if (data.length && !accountId) setAccountId(String(data[0].id));
-    });
-  }, []);
-
+  // Prefill from: an existing post, a chosen template, or a calendar day.
   useEffect(() => {
     if (id) {
-      getPost(id).then((post) => {
-        setAccountId(String(post.accountId));
-        setThreads(
-          post.threads.map((t) => ({
-            text: t.text,
-            images: t.images || [],
-            localFiles: [],
-          }))
-        );
-        if (post.scheduledAt) {
-          const d = new Date(post.scheduledAt);
-          setScheduleDate(d.toISOString().slice(0, 10));
-          setScheduleTime(d.toTimeString().slice(0, 5));
-        }
-      });
+      getPost(id)
+        .then((post) => {
+          setStatus(post.status);
+          setReviewNote(post.status === 'rejected' ? post.reviewNote || '' : '');
+          setThreads(post.threads.map((t) => newSegment(t.text, t.images || [])));
+          if (post.scheduledAt) setWhen(toLocalInput(post.scheduledAt));
+          setLoaded(true);
+        })
+        .catch((err) => {
+          setError(err.message);
+          setLoaded(true);
+        });
+      return;
     }
-  }, [id]);
+    const template = location.state?.template;
+    if (template) setThreads(template.threads.map((t) => newSegment(t.text || '')));
+    const date = search.get('date');
+    if (date) setWhen(`${date}T09:00`);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const updateThread = (index, field, value) => {
+  const patch = (uid, fields) =>
+    setThreads((prev) => prev.map((t) => (t.uid === uid ? { ...t, ...fields } : t)));
+
+  const move = (index, dir) => {
+    const to = index + dir;
+    if (to < 0 || to >= threads.length) return;
     setThreads((prev) => {
       const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
+      [copy[index], copy[to]] = [copy[to], copy[index]];
       return copy;
     });
   };
 
-  const addSegment = () => setThreads((prev) => [...prev, emptySegment()]);
-
-  const removeSegment = (index) => {
-    if (threads.length <= 1) return;
-    setThreads((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const moveSegment = (index, dir) => {
-    const newIndex = index + dir;
-    if (newIndex < 0 || newIndex >= threads.length) return;
-    setThreads((prev) => {
-      const copy = [...prev];
-      [copy[index], copy[newIndex]] = [copy[newIndex], copy[index]];
-      return copy;
-    });
-  };
-
-  const handleImageUpload = async (index, files) => {
-    const current = threads[index].images.length;
-    const allowed = 4 - current;
-    if (allowed <= 0) return;
-
-    const toUpload = Array.from(files).slice(0, allowed);
+  const addImages = async (segment, fileList) => {
+    setError('');
+    const room = 4 - segment.images.length;
+    const files = Array.from(fileList).slice(0, room);
+    const rejected = files.find((f) => !IMAGE_TYPES.includes(f.type) || f.size > MAX_IMAGE_BYTES);
+    if (rejected) {
+      setError(`${rejected.name}: images must be JPEG, PNG, GIF or WebP and under 5MB.`);
+      return;
+    }
+    if (!files.length) return;
     try {
-      const uploaded = await uploadImages(toUpload);
-      updateThread(index, 'images', [
-        ...threads[index].images,
-        ...uploaded.map((u) => ({
-          path: u.path,
-          altText: '',
-          filename: u.filename,
-        })),
-      ]);
+      const uploaded = await uploadImages(files);
+      patch(segment.uid, {
+        images: [...segment.images, ...uploaded.map((u) => ({ path: u.path, filename: u.filename, altText: '' }))],
+      });
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const removeImage = (threadIdx, imgIdx) => {
-    updateThread(
-      threadIdx,
-      'images',
-      threads[threadIdx].images.filter((_, i) => i !== imgIdx)
-    );
-  };
-
-  const updateAltText = (threadIdx, imgIdx, alt) => {
-    const imgs = [...threads[threadIdx].images];
-    imgs[imgIdx] = { ...imgs[imgIdx], altText: alt };
-    updateThread(threadIdx, 'images', imgs);
-  };
-
-  const buildScheduledAt = () => {
-    if (!scheduleDate || !scheduleTime) return null;
-    return new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
-  };
-
   const save = async (asDraft) => {
     setError('');
+    const scheduledAt = fromLocalInput(when);
+    if (!asDraft && !scheduledAt) {
+      setError('Pick a date and time first.');
+      return;
+    }
     setSaving(true);
     try {
-      const scheduledAt = asDraft ? null : buildScheduledAt();
-      if (!asDraft && !scheduledAt) {
-        setError('Please set a date and time to schedule.');
-        setSaving(false);
-        return;
-      }
-
       const payload = {
-        accountId: parseInt(accountId),
-        status: asDraft ? 'draft' : 'scheduled',
+        status: asDraft ? 'draft' : isAdmin ? 'scheduled' : 'pending',
         scheduledAt,
-        threads: threads.map((t, i) => ({
-          position: i,
+        threads: threads.map((t) => ({
           text: t.text,
-          images: t.images.map((img, j) => ({
-            path: img.path,
-            altText: img.altText || '',
-            position: j,
-          })),
+          images: t.images.map((img) => ({ path: img.path, altText: img.altText || '' })),
         })),
       };
-
-      if (id) {
-        await updatePost(id, payload);
-      } else {
-        await createPost(payload);
-      }
-      navigate('/');
+      if (id) await updatePost(id, payload);
+      else await createPost(payload);
+      onChange();
+      navigate(`/?tab=${payload.status}`);
     } catch (err) {
       setError(err.message);
     }
     setSaving(false);
   };
 
-  const loadTemplates = async () => {
-    const data = await getTemplates();
-    setTemplates(data);
-    setShowTemplateModal(true);
+  const openTemplates = async () => {
+    try {
+      setTemplates(await getTemplates());
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const applyTemplate = (template) => {
-    setThreads(
-      template.threads.map((t) => ({
-        text: t.text || '',
-        images: [],
-        localFiles: [],
-      }))
-    );
-    setShowTemplateModal(false);
+  const saveTemplate = async () => {
+    const name = prompt('Template name:');
+    if (!name?.trim()) return;
+    try {
+      await createTemplate({ name: name.trim(), threads: threads.map((t, i) => ({ position: i, text: t.text })) });
+      alert('Saved to the Prop Room.');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const saveAsTemplate = async () => {
-    if (!templateName.trim()) return;
-    await createTemplate({
-      name: templateName,
-      threads: threads.map((t, i) => ({
-        position: i,
-        text: t.text,
-      })),
-    });
-    setTemplateName('');
-    setError('');
-    alert('Template saved!');
-  };
+  if (!loaded) return <p className="empty">Loading…</p>;
+
+  const editingApproved = !isAdmin && (status === 'scheduled' || status === 'pending');
 
   return (
     <div>
       <div className="page-header">
-        <h2>{id ? 'Edit Post' : 'Compose'}</h2>
+        <div>
+          <p className="eyebrow">{id ? `Editing · ${STATUS_LABELS[status] || ''}` : 'New post'}</p>
+          <h2 className="display">The Booth</h2>
+        </div>
+        <span className="posting-as">
+          <span className="label">Posting as</span> @{me.postingAs}
+        </span>
       </div>
 
+      {reviewNote && (
+        <div className="note" style={{ marginBottom: 14 }}>
+          <span className="label">Sent back by the manager</span>
+          {reviewNote}
+        </div>
+      )}
+      {status === 'scheduled' && !isAdmin && (
+        <div className="note info" style={{ marginBottom: 14 }}>
+          This post is approved. Saving changes sends it back to the manager for approval.
+        </div>
+      )}
       {error && (
-        <div style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</div>
+        <div className="note" role="alert" style={{ marginBottom: 14 }}>
+          {error}
+        </div>
       )}
 
       <div className="composer-form">
-        <div className="form-group">
-          <label>Account</label>
-          <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                @{a.handle} ({a.label})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {threads.map((segment, index) => {
-          const count = graphemeLength(segment.text);
+        {threads.map((seg, index) => {
+          const count = graphemeLength(seg.text);
           return (
-            <div key={index} className="card thread-segment">
-              <div className="segment-header">
-                <span>
-                  {threads.length > 1
-                    ? `Thread ${index + 1} of ${threads.length}`
-                    : 'Post'}
-                </span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => moveSegment(index, -1)}
-                    disabled={index === 0}
-                    title="Move up"
-                  >
+            <div key={seg.uid} className="seat">
+              <div className="seat-header">
+                <span className="seat-number display">{index + 1}</span>
+                <span className="label">{threads.length > 1 ? `Post ${index + 1} of ${threads.length}` : 'Post'}</span>
+                <div className="seat-tools">
+                  <button className="btn-small" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Move up">
                     ↑
                   </button>
                   <button
-                    className="btn-secondary"
-                    onClick={() => moveSegment(index, 1)}
+                    className="btn-small"
+                    onClick={() => move(index, 1)}
                     disabled={index === threads.length - 1}
-                    title="Move down"
+                    aria-label="Move down"
                   >
                     ↓
                   </button>
                   <button
-                    className="btn-danger"
-                    onClick={() => removeSegment(index)}
+                    className="btn-danger btn-small"
+                    onClick={() => setThreads((prev) => prev.filter((t) => t.uid !== seg.uid))}
                     disabled={threads.length <= 1}
-                    title="Remove segment"
+                    aria-label="Remove this post"
                   >
                     ×
                   </button>
                 </div>
               </div>
+
               <textarea
-                value={segment.text}
-                onChange={(e) => updateThread(index, 'text', e.target.value)}
-                placeholder="What's on your mind?"
-                maxLength={350}
+                value={seg.text}
+                onChange={(e) => patch(seg.uid, { text: e.target.value })}
+                placeholder="What's showing?"
+                aria-label={`Text for post ${index + 1}`}
               />
-              <div
-                className={`char-count ${count > 300 ? 'over' : count > 280 ? 'warn' : ''}`}
-              >
-                {count}/300
-              </div>
+              <div className={`char-count ${count > 300 ? 'over' : count > 280 ? 'warn' : ''}`}>{count}/300</div>
 
               <div className="image-uploads">
-                {segment.images.map((img, imgIdx) => (
-                  <div key={imgIdx} className="image-upload-item">
-                    <img
-                      src={`/uploads/${img.filename || img.path?.split('/').pop()}`}
-                      alt={img.altText}
-                    />
+                {seg.images.map((img, i) => (
+                  <div key={img.path} className="image-upload-item">
+                    <img src={`/uploads/${img.filename || img.path.split('/').pop()}`} alt={img.altText || ''} />
                     <button
                       className="remove-img"
-                      onClick={() => removeImage(index, imgIdx)}
+                      aria-label="Remove image"
+                      onClick={() => patch(seg.uid, { images: seg.images.filter((_, j) => j !== i) })}
                     >
                       ×
                     </button>
                   </div>
                 ))}
-                {segment.images.length < 4 && (
-                  <label
-                    className="image-upload-item"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      background: 'var(--bg)',
-                      fontSize: '1.5rem',
-                      color: 'var(--text-secondary)',
-                    }}
+                {seg.images.length < 4 && (
+                  <button
+                    className="image-upload-item image-add"
+                    aria-label="Add images"
+                    onClick={() => fileInputs.current[seg.uid]?.click()}
                   >
                     +
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      multiple
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleImageUpload(index, e.target.files)}
-                    />
-                  </label>
+                  </button>
                 )}
+                <input
+                  ref={(el) => (fileInputs.current[seg.uid] = el)}
+                  type="file"
+                  accept={IMAGE_TYPES.join(',')}
+                  multiple
+                  hidden
+                  onChange={(e) => {
+                    addImages(seg, e.target.files);
+                    e.target.value = '';
+                  }}
+                />
               </div>
 
-              {segment.images.map((img, imgIdx) => (
-                <div key={imgIdx} className="form-group" style={{ marginTop: 6 }}>
+              {seg.images.map((img, i) => (
+                <div key={img.path} className="alt-row">
                   <input
                     type="text"
-                    placeholder={`Alt text for image ${imgIdx + 1}`}
+                    placeholder={`Alt text for image ${i + 1}`}
+                    aria-label={`Alt text for image ${i + 1}`}
                     value={img.altText}
-                    onChange={(e) => updateAltText(index, imgIdx, e.target.value)}
+                    onChange={(e) =>
+                      patch(seg.uid, {
+                        images: seg.images.map((x, j) => (j === i ? { ...x, altText: e.target.value } : x)),
+                      })
+                    }
                   />
                 </div>
               ))}
@@ -320,92 +255,62 @@ export default function Composer() {
           );
         })}
 
-        <button className="btn-secondary" onClick={addSegment}>
-          + Add to thread
-        </button>
+        <div>
+          <button onClick={() => setThreads((prev) => [...prev, newSegment()])}>+ Add to thread</button>
+        </div>
 
         <div className="schedule-row">
           <div className="form-group">
-            <label>Date</label>
-            <input
-              type="date"
-              value={scheduleDate}
-              onChange={(e) => setScheduleDate(e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label>Time</label>
-            <input
-              type="time"
-              value={scheduleTime}
-              onChange={(e) => setScheduleTime(e.target.value)}
-            />
+            <label className="label" htmlFor="when">
+              {isAdmin ? 'Goes out at' : 'Requested time'} (your local time)
+            </label>
+            <input id="when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
           </div>
         </div>
 
         <div className="button-row">
-          <button
-            className="btn-primary"
-            onClick={() => save(false)}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : id ? 'Update Schedule' : 'Schedule'}
+          <button className="btn-primary" onClick={() => save(false)} disabled={saving}>
+            {saving ? 'Saving…' : isAdmin ? 'Schedule' : editingApproved ? 'Re-submit for approval' : 'Submit for approval'}
           </button>
-          <button
-            className="btn-secondary"
-            onClick={() => save(true)}
-            disabled={saving}
-          >
-            Save as Draft
+          <button onClick={() => save(true)} disabled={saving}>
+            Save rough cut
           </button>
-          <button className="btn-secondary" onClick={loadTemplates}>
-            Load Template
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              const name = prompt('Template name:');
-              if (name) {
-                setTemplateName(name);
-                setTimeout(() => saveAsTemplate(), 0);
-              }
-            }}
-          >
-            Save as Template
-          </button>
+          <button onClick={openTemplates}>Load template</button>
+          <button onClick={saveTemplate}>Save as template</button>
         </div>
+        {!isAdmin && (
+          <p className="muted" style={{ fontSize: '0.95rem' }}>
+            The manager reviews everything before it goes out, and you'll see their note here if it comes back.
+          </p>
+        )}
       </div>
 
-      {showTemplateModal && (
-        <div className="modal-overlay" onClick={() => setShowTemplateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Load Template</h3>
-            {templates.length === 0 ? (
-              <p>No templates saved yet.</p>
-            ) : (
-              templates.map((t) => (
-                <div
-                  key={t.id}
-                  className="card"
-                  style={{ marginBottom: 8, cursor: 'pointer' }}
-                  onClick={() => applyTemplate(t)}
-                >
-                  <strong>{t.name}</strong>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {t.threads[0]?.text?.slice(0, 80) || '(empty)'}
-                  </p>
+      {templates && (
+        <Modal title="Load template" onClose={() => setTemplates(null)}>
+          {templates.length === 0 ? (
+            <p className="muted">The Prop Room is empty.</p>
+          ) : (
+            templates.map((t) => (
+              <button
+                key={t.id}
+                className="card"
+                style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 8, textTransform: 'none', letterSpacing: 0 }}
+                onClick={() => {
+                  setThreads(t.threads.map((s) => newSegment(s.text || '')));
+                  setTemplates(null);
+                }}
+              >
+                <strong className="cream">{t.name}</strong>
+                <div className="muted" style={{ fontFamily: 'var(--serif)', fontWeight: 400 }}>
+                  {t.threads[0]?.text?.slice(0, 80) || '(empty)'}
                 </div>
-              ))
-            )}
-            <button
-              className="btn-secondary"
-              style={{ marginTop: 12 }}
-              onClick={() => setShowTemplateModal(false)}
-            >
-              Cancel
-            </button>
+              </button>
+            ))
+          )}
+          <div className="button-row">
+            <button onClick={() => setTemplates(null)}>Cancel</button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

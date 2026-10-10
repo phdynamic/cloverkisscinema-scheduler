@@ -12,9 +12,10 @@
   },
   "dependencies": {
     "@atproto/api": "^0.13.0",
+    "@atproto/jwk-jose": "^0.2.4",
+    "@atproto/oauth-client-node": "^0.5.9",
     "@prisma/client": "^5.20.0",
     "express": "^4.21.0",
-    "express-basic-auth": "^1.2.1",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3"
   },

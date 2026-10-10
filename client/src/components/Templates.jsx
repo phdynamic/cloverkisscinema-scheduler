@@ -2,73 +2,75 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTemplates, deleteTemplate } from '../api';
 
-export default function Templates() {
+export default function Templates({ me }) {
+  const isAdmin = me.user.role === 'admin';
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const load = async () => {
-    setLoading(true);
     try {
-      const data = await getTemplates();
-      setTemplates(data);
+      setTemplates(await getTemplates());
     } catch (err) {
-      console.error(err);
+      setError(err.message);
     }
     setLoading(false);
   };
-
   useEffect(() => {
     load();
   }, []);
 
-  const handleDelete = async (id) => {
+  const remove = async (id) => {
     if (!confirm('Delete this template?')) return;
-    await deleteTemplate(id);
-    load();
+    try {
+      await deleteTemplate(id);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
     <div>
       <div className="page-header">
-        <h2>Templates</h2>
+        <div>
+          <p className="eyebrow">Reusable posts</p>
+          <h2 className="display">The Prop Room</h2>
+        </div>
       </div>
 
+      {error && (
+        <div className="note" role="alert" style={{ marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
       {loading ? (
-        <p>Loading...</p>
+        <p className="empty">Loading…</p>
       ) : templates.length === 0 ? (
-        <p style={{ color: 'var(--text-secondary)' }}>
-          No templates yet. Save one from the Composer.
-        </p>
+        <p className="empty">Nothing on the shelves yet. Save a post as a template from The Booth.</p>
       ) : (
         templates.map((t) => (
-          <div key={t.id} className="card template-item">
-            <div>
-              <strong>{t.name}</strong>
-              <p
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--text-secondary)',
-                  marginTop: 2,
-                }}
-              >
-                {t.threads[0]?.text?.slice(0, 80) || '(empty)'}
+          <div key={t.id} className="card post-card">
+            <div className="post-info">
+              <div className="cream" style={{ fontWeight: 600 }}>
+                {t.name}
+              </div>
+              <div className="post-preview muted">
+                {t.threads[0]?.text?.slice(0, 100) || '(empty)'}
                 {t.threads.length > 1 && ` (+${t.threads.length - 1} more)`}
-              </p>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                className="btn-primary"
-                onClick={() => navigate('/compose')}
-              >
+            <div className="post-actions">
+              <button className="btn-primary btn-small" onClick={() => navigate('/compose', { state: { template: t } })}>
                 Use
               </button>
-              <button
-                className="btn-danger"
-                onClick={() => handleDelete(t.id)}
-              >
-                Delete
-              </button>
+              {isAdmin && (
+                <button className="btn-danger btn-small" onClick={() => remove(t.id)}>
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         ))
