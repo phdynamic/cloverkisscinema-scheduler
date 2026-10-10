@@ -1,65 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, NavLink } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { getMe, getPostCounts, logout } from './api';
+import { Logo, LoreStats } from './components/Marquee';
+import Login from './components/Login';
 import Queue from './components/Queue';
 import Composer from './components/Composer';
 import Calendar from './components/Calendar';
 import Templates from './components/Templates';
-import Accounts from './components/Accounts';
-
-const THEMES = [
-  { id: 'blue', label: 'Blue' },
-  { id: 'red', label: 'Red' },
-  { id: 'purple', label: 'Purple' },
-  { id: 'teal', label: 'Teal' },
-  { id: 'orange', label: 'Orange' },
-  { id: 'emerald', label: 'Emerald' },
-];
+import Admin from './components/Admin';
 
 export default function App() {
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem('skyqueue-theme') || 'blue'
-  );
+  const [me, setMe] = useState(undefined); // undefined = loading, null = signed out
+  const [counts, setCounts] = useState({});
+
+  const refreshCounts = useCallback(() => {
+    getPostCounts().then(setCounts).catch(() => {});
+  }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('skyqueue-theme', theme);
-  }, [theme]);
+    getMe()
+      .then(setMe)
+      .catch(() => setMe(null));
+    const onUnauthorized = () => setMe(null);
+    window.addEventListener('ckc:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('ckc:unauthorized', onUnauthorized);
+  }, []);
+
+  useEffect(() => {
+    if (me) refreshCounts();
+  }, [me, refreshCounts]);
+
+  if (me === undefined) {
+    return (
+      <div className="page">
+        <p className="empty">Dimming the lights…</p>
+      </div>
+    );
+  }
+  if (me === null) {
+    return (
+      <Routes>
+        <Route path="*" element={<Login />} />
+      </Routes>
+    );
+  }
+
+  const { user, postingAs } = me;
+  const isAdmin = user.role === 'admin';
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <h1>SkyQueue</h1>
-        <nav>
-          <NavLink to="/" end>
-            Queue
-          </NavLink>
-          <NavLink to="/compose">Compose</NavLink>
-          <NavLink to="/calendar">Calendar</NavLink>
-          <NavLink to="/templates">Templates</NavLink>
-          <NavLink to="/accounts">Accounts</NavLink>
-        </nav>
-        <div className="theme-switcher">
-          <div className="theme-switcher-label">Theme</div>
-          <div className="theme-dots">
-            {THEMES.map((t) => (
-              <button
-                key={t.id}
-                className={`theme-dot theme-dot-${t.id} ${theme === t.id ? 'active' : ''}`}
-                onClick={() => setTheme(t.id)}
-                title={t.label}
-              />
-            ))}
+    <div className="page">
+      <header className="marquee">
+        <div className="app-top">
+          <Logo />
+          <div className="titles">
+            <p className="eyebrow">Now showing, at sundown</p>
+            <h1 className="display">
+              <span className="green">The Projection</span> <span className="cream">Booth</span>
+            </h1>
+          </div>
+          <div className="user-chip">
+            <div className="who">
+              <div className="cream">{user.displayName || user.handle}</div>
+              <div className="muted">{isAdmin ? 'The manager' : 'Crew'}</div>
+            </div>
+            {user.avatar ? <img src={user.avatar} alt="" /> : <div className="avatar" />}
+            <button
+              className="btn-small"
+              onClick={async () => {
+                await logout();
+                setMe(null);
+              }}
+            >
+              Sign out
+            </button>
           </div>
         </div>
-      </aside>
-      <main className="main-content">
+        <LoreStats />
+      </header>
+
+      <nav className="site-nav" aria-label="Main">
+        <NavLink to="/" end title="Everything in the pipeline">
+          Now Showing
+          {isAdmin && counts.pending > 0 && <span className="nav-count">{counts.pending}</span>}
+        </NavLink>
+        <NavLink to="/compose" title="Write a new post">
+          The Booth
+        </NavLink>
+        <NavLink to="/calendar" title="Calendar view">
+          Showtimes
+        </NavLink>
+        <NavLink to="/templates" title="Saved post templates">
+          Prop Room
+        </NavLink>
+        {isAdmin && (
+          <NavLink to="/admin" title="Manage who can sign in">
+            Manager's Office
+          </NavLink>
+        )}
+      </nav>
+
+      <main>
         <Routes>
-          <Route path="/" element={<Queue />} />
-          <Route path="/compose" element={<Composer />} />
-          <Route path="/compose/:id" element={<Composer />} />
+          <Route path="/" element={<Queue me={me} counts={counts} onChange={refreshCounts} />} />
+          <Route path="/compose" element={<Composer me={me} onChange={refreshCounts} />} />
+          <Route path="/compose/:id" element={<Composer me={me} onChange={refreshCounts} />} />
           <Route path="/calendar" element={<Calendar />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/accounts" element={<Accounts />} />
+          <Route path="/templates" element={<Templates me={me} />} />
+          <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>

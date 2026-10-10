@@ -1,158 +1,251 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../lib/db');
+const { getCkcAccount } = require('../lib/ckc');
+const { normalizeThreads, parseDate, bad } = require('../lib/validate');
+
+const STATUSES = ['draft', 'pending', 'scheduled', 'sent', 'failed', 'rejected'];
 
 const postInclude = {
-  threads: {
-    include: { images: true },
-    orderBy: { position: 'asc' },
-  },
-  account: {
-    select: { id: true, label: true, handle: true },
-  },
+  threads: { include: { images: { orderBy: { position: 'asc' } } }, orderBy: { position: 'asc' } },
+  account: { select: { id: true, label: true, handle: true } },
+  submittedBy: { select: { id: true, handle: true, displayName: true } },
+  reviewedBy: { select: { id: true, handle: true, displayName: true } },
 };
 
-// List posts with optional filters
+const isAdmin = (req) => req.user.role === 'admin';
+
+// Members only ever see their own posts.
+function visibleTo(req) {
+  return isAdmin(req) ? {} : { submittedById: req.user.id };
+}
+
+async function loadPost(req, res) {
+  const id = parseInt(req.params.id, 10);
+  const post = Number.isInteger(id)
+    ? await prisma.post.findFirst({ where: { id, ...visibleTo(req) }, include: postInclude })
+    : null;
+  if (!post) res.status(404).json({ error: 'Post not found' });
+  return post;
+}
+
+function threadCreate(threads) {
+  return {
+    create: threads.map((t) => ({
+      position: t.position,
+      text: t.text,
+      images: t.images.length ? { create: t.images } : undefined,
+    })),
+  };
+}
+
+// What status/schedule a save results in, given who is saving and what they asked for.
+function resolveStatus(req, requested, scheduledAt, existing) {
+  if (isAdmin(req)) {
+    const status = requested || existing?.status || 'draft';
+    if (!STATUSES.includes(status)) throw bad('Unknown status');
+    if (status === 'scheduled' && !scheduledAt) throw bad('Pick a date and time to schedule');
+    return status;
+  }
+  // Members: draft, or submit for approval. They can never schedule directly,
+  // and any change to an already-approved post sends it back for re-approval.
+  if (requested === 'draft') return 'draft';
+  if (!scheduledAt) throw bad('Pick a date and time to submit this post');
+  return 'pending';
+}
+
+// Counts per status, for tab badges.
+router.get('/counts', async (req, res) => {
+  try {
+    const rows = await prisma.post.groupBy({
+      by: ['status'],
+      where: visibleTo(req),
+      _count: { _all: true },
+    });
+    res.json(Object.fromEntries(rows.map((r) => [r.status, r._count._all])));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
-    const { status, accountId, from, to } = req.query;
-    const where = {};
-
-    if (status) where.status = status;
-    if (accountId) where.accountId = parseInt(accountId);
+    const { status, from, to } = req.query;
+    const where = { ...visibleTo(req) };
+    if (status) {
+      if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Unknown status' });
+      where.status = status;
+    }
     if (from || to) {
       where.scheduledAt = {};
-      if (from) where.scheduledAt.gte = new Date(from);
-      if (to) where.scheduledAt.lte = new Date(to);
+      if (from) where.scheduledAt.gte = parseDate(from, 'from');
+      if (to) where.scheduledAt.lte = parseDate(to, 'to');
     }
-
     const posts = await prisma.post.findMany({
       where,
       include: postInclude,
-      orderBy: { scheduledAt: 'asc' },
+      orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
     });
     res.json(posts);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Get single post
 router.get('/:id', async (req, res) => {
   try {
-    const post = await prisma.post.findUnique({
-      where: { id: parseInt(req.params.id) },
-      include: postInclude,
-    });
-    if (!post) return res.status(404).json({ error: 'Post not found' });
-    res.json(post);
+    const post = await loadPost(req, res);
+    if (post) res.json(post);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Create post
 router.post('/', async (req, res) => {
   try {
-    const { accountId, scheduledAt, threads, status } = req.body;
-
-    if (!accountId || !threads || !threads.length) {
-      return res.status(400).json({ error: 'accountId and threads are required' });
-    }
+    const scheduledAt = req.body.scheduledAt ? parseDate(req.body.scheduledAt, 'Schedule') : null;
+    const status = resolveStatus(req, req.body.status, scheduledAt, null);
+    const threads = normalizeThreads(req.body.threads, { strict: status !== 'draft' });
+    const account = await getCkcAccount();
 
     const post = await prisma.post.create({
       data: {
-        accountId: parseInt(accountId),
-        status: status || (scheduledAt ? 'scheduled' : 'draft'),
-        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-        threads: {
-          create: threads.map((t, i) => ({
-            position: t.position ?? i,
-            text: t.text || '',
-            images: t.images?.length
-              ? {
-                  create: t.images.map((img, j) => ({
-                    path: img.path,
-                    altText: img.altText || '',
-                    position: img.position ?? j,
-                  })),
-                }
-              : undefined,
-          })),
-        },
+        accountId: account.id,
+        status,
+        scheduledAt,
+        submittedById: req.user.id,
+        threads: threadCreate(threads),
       },
       include: postInclude,
     });
-
     res.status(201).json(post);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Update post
 router.put('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const { scheduledAt, status, threads } = req.body;
+    const existing = await loadPost(req, res);
+    if (!existing) return;
 
-    const updateData = {};
-    if (status !== undefined) updateData.status = status;
-    if (scheduledAt !== undefined) {
-      updateData.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    if (existing.status === 'sent') throw bad("This post has already premiered and can't be edited");
+    if (!isAdmin(req) && existing.status === 'failed') throw bad('Only the manager can retry a failed post');
+
+    const scheduledAt =
+      req.body.scheduledAt !== undefined
+        ? req.body.scheduledAt
+          ? parseDate(req.body.scheduledAt, 'Schedule')
+          : null
+        : existing.scheduledAt;
+
+    // Members editing an approved post must re-submit it, so default to "pending".
+    const requested = req.body.status ?? (isAdmin(req) ? undefined : 'pending');
+    const status = resolveStatus(req, requested, scheduledAt, existing);
+    const threads = req.body.threads
+      ? normalizeThreads(req.body.threads, { strict: status !== 'draft' })
+      : null;
+
+    const data = { status, scheduledAt };
+    // Moving a post back into review/draft clears the previous verdict.
+    if (['pending', 'draft'].includes(status)) {
+      data.reviewNote = null;
+      data.reviewedAt = null;
+      data.reviewedById = null;
     }
-
-    // If threads are provided, delete old ones and recreate
-    if (threads) {
-      await prisma.thread.deleteMany({ where: { postId: id } });
-
-      await prisma.post.update({
-        where: { id },
-        data: {
-          ...updateData,
-          threads: {
-            create: threads.map((t, i) => ({
-              position: t.position ?? i,
-              text: t.text || '',
-              images: t.images?.length
-                ? {
-                    create: t.images.map((img, j) => ({
-                      path: img.path,
-                      altText: img.altText || '',
-                      position: img.position ?? j,
-                    })),
-                  }
-                : undefined,
-            })),
-          },
-        },
-      });
-    } else {
-      await prisma.post.update({
-        where: { id },
-        data: updateData,
-      });
+    if (status === 'scheduled' && existing.status !== 'scheduled') {
+      data.errorMsg = null;
+      data.reviewedAt = new Date();
+      data.reviewedById = req.user.id;
     }
+    if (threads) data.threads = threadCreate(threads);
 
-    const post = await prisma.post.findUnique({
-      where: { id },
-      include: postInclude,
+    await prisma.$transaction(async (tx) => {
+      if (threads) await tx.thread.deleteMany({ where: { postId: existing.id } });
+      await tx.post.update({ where: { id: existing.id }, data });
     });
 
-    res.json(post);
+    res.json(await prisma.post.findUnique({ where: { id: existing.id }, include: postInclude }));
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Delete post
+// Manager approves a pending post (optionally choosing a new time).
+router.post('/:id/approve', async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Manager access only' });
+    const post = await loadPost(req, res);
+    if (!post) return;
+    if (post.status !== 'pending') throw bad('Only posts awaiting approval can be approved');
+
+    const scheduledAt = req.body?.scheduledAt
+      ? parseDate(req.body.scheduledAt, 'Schedule')
+      : post.scheduledAt;
+    if (!scheduledAt) throw bad('Pick a date and time');
+    if (scheduledAt < new Date(Date.now() - 60 * 1000) && !req.body?.scheduledAt) {
+      return res.status(409).json({
+        error: 'The requested time has already passed. Pick a new time.',
+        code: 'PAST_TIME',
+      });
+    }
+
+    const updated = await prisma.post.update({
+      where: { id: post.id },
+      data: {
+        status: 'scheduled',
+        scheduledAt,
+        reviewedById: req.user.id,
+        reviewedAt: new Date(),
+        reviewNote: null,
+      },
+      include: postInclude,
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Manager sends a pending post back with a note.
+router.post('/:id/reject', async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Manager access only' });
+    const post = await loadPost(req, res);
+    if (!post) return;
+    if (post.status !== 'pending') throw bad('Only posts awaiting approval can be sent back');
+
+    const note = String(req.body?.note || '').trim();
+    if (!note) throw bad('Add a note so the author knows what to change');
+    if (note.length > 500) throw bad('Keep the note under 500 characters');
+
+    const updated = await prisma.post.update({
+      where: { id: post.id },
+      data: {
+        status: 'rejected',
+        reviewNote: note,
+        reviewedById: req.user.id,
+        reviewedAt: new Date(),
+      },
+      include: postInclude,
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    await prisma.post.delete({ where: { id } });
+    const post = await loadPost(req, res);
+    if (!post) return;
+    if (!isAdmin(req) && !['draft', 'pending', 'rejected'].includes(post.status)) {
+      throw bad("Approved posts can only be removed by the manager");
+    }
+    await prisma.post.delete({ where: { id: post.id } });
     res.json({ success: true });
   } catch (err) {
-    res.status(404).json({ error: 'Post not found' });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

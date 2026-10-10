@@ -1,127 +1,121 @@
-const { BskyAgent } = require('@atproto/api');
+const { BskyAgent, RichText } = require('@atproto/api');
 const fs = require('fs');
 const path = require('path');
+const { CKC_HANDLE, normalizeHandle } = require('./config');
 
-// In-memory session cache keyed by accountId
-const sessions = new Map();
+const PUBLIC_API = 'https://public.api.bsky.app/xrpc';
 
-async function login(account) {
-  const cached = sessions.get(account.id);
-  if (cached) {
-    return cached;
+const MIME_BY_EXT = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
+
+// ── Public (unauthenticated) lookups ─────────────────────────────────────
+
+async function publicGet(method, params) {
+  const url = `${PUBLIC_API}/${method}?${new URLSearchParams(params)}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.message || `Bluesky lookup failed (${res.status})`);
+    err.status = res.status;
+    throw err;
   }
+  return res.json();
+}
 
-  const agent = new BskyAgent({ service: 'https://bsky.social' });
-  await agent.login({
-    identifier: account.handle,
-    password: account.appPassword,
+async function resolveHandle(handle) {
+  const data = await publicGet('com.atproto.identity.resolveHandle', {
+    handle: normalizeHandle(handle),
   });
-
-  sessions.set(account.id, agent);
-  return agent;
+  return data.did;
 }
 
-function clearSession(accountId) {
-  sessions.delete(accountId);
+async function getProfile(actor) {
+  return publicGet('app.bsky.actor.getProfile', { actor });
 }
 
-async function getAgent(account) {
-  try {
-    const agent = await login(account);
-    return agent;
-  } catch (err) {
-    // If cached session expired, clear and retry once
-    clearSession(account.id);
-    const agent = await login(account);
-    return agent;
+// ── The Clover Kiss Cinema posting agent (credentials from env) ──────────
+
+let agentPromise = null;
+
+function getAgent() {
+  if (!agentPromise) {
+    const password = process.env.CKC_APP_PASSWORD;
+    if (!password) {
+      return Promise.reject(new Error('CKC_APP_PASSWORD is not set'));
+    }
+    const agent = new BskyAgent({ service: 'https://bsky.social' });
+    agentPromise = agent
+      .login({ identifier: CKC_HANDLE, password: password.trim() })
+      .then(() => agent)
+      .catch((err) => {
+        agentPromise = null; // retry from scratch next time
+        throw err;
+      });
   }
+  return agentPromise;
 }
 
-async function uploadBlob(agent, filePath, mimeType) {
-  const fileBytes = fs.readFileSync(filePath);
-  const response = await agent.uploadBlob(fileBytes, { encoding: mimeType });
+function clearAgent() {
+  agentPromise = null;
+}
+
+async function uploadBlob(agent, filePath) {
+  const mimeType = MIME_BY_EXT[path.extname(filePath).toLowerCase()];
+  if (!mimeType) throw new Error(`Unsupported image type: ${path.basename(filePath)}`);
+  const bytes = fs.readFileSync(filePath);
+  const response = await agent.uploadBlob(bytes, { encoding: mimeType });
   return response.data.blob;
 }
 
-async function sendPost(post) {
-  const agent = await getAgent(post.account);
-
-  // Sort threads by position
-  const threads = [...post.threads].sort((a, b) => a.position - b.position);
-
+async function postSegments(agent, threads) {
   let rootRef = null;
   let parentRef = null;
 
   for (const thread of threads) {
-    // Upload images if any
-    let embed = undefined;
+    let embed;
     if (thread.images && thread.images.length > 0) {
-      const sortedImages = [...thread.images].sort(
-        (a, b) => a.position - b.position
-      );
-      const imageBlobs = [];
-
-      for (const img of sortedImages) {
-        const fullPath = path.resolve(img.path);
-        const ext = path.extname(img.path).toLowerCase();
-        const mimeMap = {
-          '.jpg': 'image/jpeg',
-          '.jpeg': 'image/jpeg',
-          '.png': 'image/png',
-          '.gif': 'image/gif',
-          '.webp': 'image/webp',
-        };
-        const mimeType = mimeMap[ext] || 'image/jpeg';
-        const blob = await uploadBlob(agent, fullPath, mimeType);
-        imageBlobs.push({
-          alt: img.altText || '',
-          image: blob,
-          aspectRatio: undefined,
-        });
+      const images = [];
+      for (const img of [...thread.images].sort((a, b) => a.position - b.position)) {
+        const blob = await uploadBlob(agent, path.resolve(img.path));
+        images.push({ alt: img.altText || '', image: blob });
       }
-
-      embed = {
-        $type: 'app.bsky.embed.images',
-        images: imageBlobs,
-      };
+      embed = { $type: 'app.bsky.embed.images', images };
     }
 
-    // Build post record
-    const record = {
-      text: thread.text,
-      createdAt: new Date().toISOString(),
-    };
+    // Detect links, mentions and hashtags so they are clickable.
+    const rt = new RichText({ text: thread.text });
+    await rt.detectFacets(agent);
 
-    if (embed) {
-      record.embed = embed;
-    }
-
-    // Add reply reference for thread continuations
-    if (parentRef) {
-      record.reply = {
-        root: rootRef,
-        parent: parentRef,
-      };
-    }
+    const record = { text: rt.text, createdAt: new Date().toISOString() };
+    if (rt.facets && rt.facets.length) record.facets = rt.facets;
+    if (embed) record.embed = embed;
+    if (parentRef) record.reply = { root: rootRef, parent: parentRef };
 
     const response = await agent.post(record);
-
-    const ref = {
-      uri: response.uri,
-      cid: response.cid,
-    };
-
-    if (!rootRef) {
-      rootRef = ref;
-    }
+    const ref = { uri: response.uri, cid: response.cid };
+    if (!rootRef) rootRef = ref;
     parentRef = ref;
   }
 }
 
-async function resolveHandle(handle) {
-  const agent = new BskyAgent({ service: 'https://bsky.social' });
-  const response = await agent.resolveHandle({ handle });
-  return response.data.did;
+async function sendPost(post) {
+  const threads = [...post.threads].sort((a, b) => a.position - b.position);
+  try {
+    await postSegments(await getAgent(), threads);
+  } catch (err) {
+    // An expired/revoked session surfaces as 401 (or ExpiredToken): log in again once.
+    if (err.status === 401 || /ExpiredToken|InvalidToken/i.test(err.message || '')) {
+      clearAgent();
+      await postSegments(await getAgent(), threads);
+      return;
+    }
+    throw err;
+  }
 }
 
-module.exports = { login, getAgent, sendPost, resolveHandle, clearSession };
+module.exports = { resolveHandle, getProfile, getAgent, sendPost, clearAgent };

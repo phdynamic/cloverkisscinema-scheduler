@@ -46,6 +46,7 @@ router.post('/', async (req, res) => {
 // Delete template
 router.delete('/:id', async (req, res) => {
   try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Manager access only' });
     await prisma.template.delete({
       where: { id: parseInt(req.params.id) },
     });

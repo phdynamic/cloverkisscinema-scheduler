@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// The single Clover Kiss Cinema posting account. Credentials live in
+// environment variables, not in this table (appPassword is a placeholder).
 model Account {
   id          Int      @id @default(autoincrement())
   label       String
@@ -17,17 +19,59 @@ model Account {
   posts       Post[]
 }
 
-model Post {
+// People allowed to log in. role: "admin" | "member"
+model User {
   id          Int       @id @default(autoincrement())
-  accountId   Int
-  account     Account   @relation(fields: [accountId], references: [id])
-  status      String    @default("scheduled")
-  scheduledAt DateTime?
-  sentAt      DateTime?
-  errorMsg    String?
-  threads     Thread[]
+  did         String    @unique
+  handle      String
+  displayName String?
+  avatar      String?
+  role        String    @default("member")
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+  sessions    Session[]
+  submitted   Post[]    @relation("PostSubmitter")
+  reviewed    Post[]    @relation("PostReviewer")
+}
+
+model Session {
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Key/value storage for the atproto OAuth client (JSON strings).
+model OAuthState {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+}
+
+model OAuthSession {
+  key   String @id
+  value String
+}
+
+model Post {
+  id            Int       @id @default(autoincrement())
+  accountId     Int
+  account       Account   @relation(fields: [accountId], references: [id])
+  // draft | pending | scheduled | sent | failed | rejected
+  status        String    @default("draft")
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  errorMsg      String?
+  submittedById Int?
+  submittedBy   User?     @relation("PostSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedById  Int?
+  reviewedBy    User?     @relation("PostReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  reviewNote    String?
+  threads       Thread[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Thread {

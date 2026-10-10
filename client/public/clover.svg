@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Clover Kiss Cinema">
+  <circle cx="100" cy="100" r="94" fill="#141b22" stroke="#f0a62c" stroke-width="6"/>
+  <g fill="#5fc13b" stroke="#2f7d2a" stroke-width="3">
+    <circle cx="78" cy="74" r="26"/>
+    <circle cx="122" cy="74" r="26"/>
+    <circle cx="78" cy="116" r="26"/>
+    <circle cx="122" cy="116" r="26"/>
+  </g>
+  <circle cx="100" cy="95" r="24" fill="#efe7d6" stroke="#141b22" stroke-width="3"/>
+  <g fill="#141b22">
+    <circle cx="100" cy="95" r="5"/>
+    <circle cx="100" cy="82" r="4"/><circle cx="100" cy="108" r="4"/>
+    <circle cx="87" cy="95" r="4"/><circle cx="113" cy="95" r="4"/>
+  </g>
+  <path d="M104 118 L128 176" stroke="#efe7d6" stroke-width="12" stroke-linecap="round"/>
+  <path d="M104 118 L128 176" stroke="#141b22" stroke-width="4" stroke-dasharray="3 6" stroke-linecap="butt"/>
+</svg>

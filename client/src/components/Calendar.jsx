@@ -1,32 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPosts } from '../api';
+import { STATUS_LABELS } from '../labels';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function getMonthDays(year, month) {
+function monthCells(year, month) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevDays = new Date(year, month, 0).getDate();
-
   const cells = [];
-
-  // Previous month padding
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: prevDays - i, current: false });
-  }
-
-  // Current month
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, current: true });
-  }
-
-  // Next month padding
-  const remaining = 42 - cells.length;
-  for (let d = 1; d <= remaining; d++) {
-    cells.push({ day: d, current: false });
-  }
-
+  for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, current: false });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, current: true });
+  while (cells.length % 7 !== 0) cells.push({ day: cells.length - daysInMonth - firstDay + 1, current: false });
   return cells;
 }
 
@@ -44,133 +30,100 @@ export default function Calendar() {
     getPosts({ from, to }).then(setPosts).catch(console.error);
   }, [year, month]);
 
-  const cells = getMonthDays(year, month);
-  const today = now.getDate();
-  const isCurrentMonth =
-    year === now.getFullYear() && month === now.getMonth();
-
   const postsByDay = {};
   posts.forEach((p) => {
     if (!p.scheduledAt) return;
     const d = new Date(p.scheduledAt);
-    if (d.getMonth() === month && d.getFullYear() === year) {
-      const day = d.getDate();
-      if (!postsByDay[day]) postsByDay[day] = [];
-      postsByDay[day].push(p);
-    }
+    (postsByDay[d.getDate()] ||= []).push(p);
   });
 
-  const prevMonth = () => {
-    if (month === 0) {
-      setMonth(11);
-      setYear(year - 1);
-    } else {
-      setMonth(month - 1);
-    }
+  const step = (delta) => {
+    const d = new Date(year, month + delta, 1);
+    setYear(d.getFullYear());
+    setMonth(d.getMonth());
     setSelectedDay(null);
   };
 
-  const nextMonth = () => {
-    if (month === 11) {
-      setMonth(0);
-      setYear(year + 1);
-    } else {
-      setMonth(month + 1);
-    }
-    setSelectedDay(null);
-  };
-
-  const monthName = new Date(year, month).toLocaleString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  });
-
+  const monthName = new Date(year, month).toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  const isoDay = (day) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const dayPosts = selectedDay ? postsByDay[selectedDay] || [] : [];
 
   return (
     <div>
       <div className="page-header">
-        <h2>Calendar</h2>
+        <div>
+          <p className="eyebrow">The schedule</p>
+          <h2 className="display">Showtimes</h2>
+        </div>
       </div>
 
       <div className="calendar-nav">
-        <button className="btn-secondary" onClick={prevMonth}>
-          ← Prev
-        </button>
-        <h3>{monthName}</h3>
-        <button className="btn-secondary" onClick={nextMonth}>
-          Next →
-        </button>
+        <button onClick={() => step(-1)}>← Prev</button>
+        <h3 className="display">{monthName}</h3>
+        <button onClick={() => step(1)}>Next →</button>
       </div>
 
       <div className="calendar-grid">
         {DAY_NAMES.map((d) => (
-          <div key={d} className="day-header">
+          <div key={d} className="day-header label">
             {d}
           </div>
         ))}
-        {cells.map((cell, i) => (
-          <div
-            key={i}
-            className={`day-cell ${!cell.current ? 'other-month' : ''} ${
-              cell.current && cell.day === today && isCurrentMonth ? 'today' : ''
-            }`}
-            onClick={() => cell.current && setSelectedDay(cell.day)}
-          >
-            <div className="day-number">{cell.day}</div>
-            {cell.current && postsByDay[cell.day] && (
-              <span className="badge badge-thread">
-                {postsByDay[cell.day].length} post
-                {postsByDay[cell.day].length > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        ))}
+        {monthCells(year, month).map((cell, i) => {
+          const isToday = cell.current && year === now.getFullYear() && month === now.getMonth() && cell.day === now.getDate();
+          const list = cell.current ? postsByDay[cell.day] : null;
+          return (
+            <button
+              key={i}
+              disabled={!cell.current}
+              className={`day-cell ${cell.current ? '' : 'other-month'} ${isToday ? 'today' : ''} ${
+                cell.current && selectedDay === cell.day ? 'selected' : ''
+              }`}
+              onClick={() => setSelectedDay(cell.day)}
+            >
+              <span className="day-number">{cell.day}</span>
+              {list && (
+                <>
+                  <span className="badge badge-pending">
+                    {list.length} post{list.length > 1 ? 's' : ''}
+                  </span>
+                  <span className="dot" aria-label={`${list.length} posts`} />
+                </>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {selectedDay && (
-        <div style={{ marginTop: 20 }}>
-          <h3 style={{ marginBottom: 12 }}>
-            Posts for {monthName.split(' ')[0]} {selectedDay}
-          </h3>
+        <div style={{ marginTop: 24 }}>
+          <div className="page-header" style={{ marginTop: 0 }}>
+            <h3 className="display cream" style={{ fontSize: '1.5rem' }}>
+              {new Date(year, month, selectedDay).toLocaleDateString(undefined, { dateStyle: 'full' })}
+            </h3>
+            <button className="btn-primary btn-small" onClick={() => navigate(`/compose?date=${isoDay(selectedDay)}`)}>
+              + Compose for this day
+            </button>
+          </div>
           {dayPosts.length === 0 ? (
-            <div>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
-                No posts scheduled.
-              </p>
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
-                  navigate(`/compose?date=${date}`);
-                }}
-              >
-                + Compose for this day
-              </button>
-            </div>
+            <p className="muted">Nothing booked.</p>
           ) : (
             dayPosts.map((p) => (
-              <div
+              <button
                 key={p.id}
                 className="card post-card"
-                style={{ cursor: 'pointer' }}
+                style={{ width: '100%', textAlign: 'left', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}
                 onClick={() => navigate(`/compose/${p.id}`)}
               >
                 <div className="post-info">
                   <div className="post-meta">
-                    <span>@{p.account?.handle}</span>
-                    <span>
-                      {new Date(p.scheduledAt).toLocaleTimeString(undefined, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
+                    <span className={`badge badge-${p.status}`}>{STATUS_LABELS[p.status]}</span>
+                    <span>{new Date(p.scheduledAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
+                    {p.submittedBy && <span>@{p.submittedBy.handle}</span>}
                   </div>
-                  <div className="post-preview">
-                    {p.threads[0]?.text?.slice(0, 100) || '(empty)'}
-                  </div>
+                  <div className="post-preview">{p.threads[0]?.text?.slice(0, 100) || '(image only)'}</div>
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>
