@@ -7,6 +7,8 @@ module.exports = {
   IS_SECURE: BASE_URL.startsWith('https://'),
   IS_LOCAL: BASE_URL.startsWith('http://localhost'),
   UPLOAD_DIR: path.resolve(process.env.UPLOAD_DIR || '/data/uploads'),
+  // Bluesky rejects image blobs over 1,000,000 bytes (app.bsky.embed.images lexicon).
+  MAX_IMAGE_BYTES: 1000000,
   SESSION_DAYS: 14,
   CKC_HANDLE: normalizeHandle(process.env.CKC_HANDLE || 'cloverkisscinema.club'),
   ADMIN_HANDLE: process.env.ADMIN_HANDLE ? normalizeHandle(process.env.ADMIN_HANDLE) : null,

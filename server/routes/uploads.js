@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const { UPLOAD_DIR } = require('../lib/config');
+const { UPLOAD_DIR, MAX_IMAGE_BYTES } = require('../lib/config');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -30,7 +30,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB (Bluesky compresses at send time)
+  // Bluesky's per-image limit (inclusive); it does not resize for us. multer errors once a
+  // file *reaches* the limit, hence +1 so that exactly MAX_IMAGE_BYTES is still accepted.
+  limits: { fileSize: MAX_IMAGE_BYTES + 1 },
   fileFilter: (req, file, cb) => {
     if (ALLOWED_TYPES.includes(file.mimetype)) {
       cb(null, true);
@@ -45,7 +47,7 @@ router.post('/', (req, res) => {
   upload.array('images', 4)(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({ error: 'File too large. Maximum size is 5MB per image.' });
+        return res.status(413).json({ error: "That image is over Bluesky's 1MB limit. Photos are shrunk automatically in the browser; GIFs must already be under 1MB." });
       }
       if (err.code === 'LIMIT_UNEXPECTED_FILE') {
         return res.status(400).json({ error: 'Maximum 4 images per upload.' });

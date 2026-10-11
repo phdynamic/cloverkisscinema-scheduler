@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { UPLOAD_DIR } = require('./config');
+const { UPLOAD_DIR, MAX_IMAGE_BYTES } = require('./config');
 
 const MAX_SEGMENTS = 25;
 const MAX_CHARS = 300;
@@ -39,6 +39,9 @@ function normalizeThreads(threads, { strict }) {
       if (!resolved.startsWith(UPLOAD_DIR + path.sep)) throw bad(`Post ${n}: invalid image`);
       if (!IMAGE_EXTS.has(path.extname(resolved).toLowerCase())) throw bad(`Post ${n}: invalid image type`);
       if (!fs.existsSync(resolved)) throw bad(`Post ${n}: an image is missing, please re-upload it`);
+      if (fs.statSync(resolved).size > MAX_IMAGE_BYTES) {
+        throw bad(`Post ${n}: an image is over Bluesky's 1MB limit, please remove it and add a smaller one`);
+      }
       const altText = typeof img.altText === 'string' ? img.altText : '';
       if (graphemeLength(altText) > MAX_ALT) throw bad(`Post ${n}: alt text is too long`);
       return { path: resolved, altText, position: j };

@@ -3,8 +3,9 @@ import { useNavigate, useParams, useLocation, useSearchParams } from 'react-rout
 import { getPost, createPost, updatePost, uploadImages, getTemplates, createTemplate } from '../api';
 import { STATUS_LABELS, graphemeLength, toLocalInput, fromLocalInput } from '../labels';
 import Modal from './Modal';
+import { prepareImage } from '../imageUtils';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_SOURCE_BYTES = 40 * 1024 * 1024; // what we'll try to decode and shrink
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 let uidCounter = 0;
@@ -22,6 +23,7 @@ export default function Composer({ me, onChange }) {
   const [reviewNote, setReviewNote] = useState('');
   const [when, setWhen] = useState('');
   const [saving, setSaving] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(!id);
   const [templates, setTemplates] = useState(null);
@@ -67,20 +69,25 @@ export default function Composer({ me, onChange }) {
     setError('');
     const room = 4 - segment.images.length;
     const files = Array.from(fileList).slice(0, room);
-    const rejected = files.find((f) => !IMAGE_TYPES.includes(f.type) || f.size > MAX_IMAGE_BYTES);
+    const rejected = files.find((f) => !IMAGE_TYPES.includes(f.type) || f.size > MAX_SOURCE_BYTES);
     if (rejected) {
-      setError(`${rejected.name}: images must be JPEG, PNG, GIF or WebP and under 5MB.`);
+      setError(`${rejected.name}: images must be JPEG, PNG, GIF or WebP (and not enormous).`);
       return;
     }
     if (!files.length) return;
+    setPreparing(true);
     try {
-      const uploaded = await uploadImages(files);
+      // Bluesky's limit is 1MB per image and it won't resize for us.
+      const ready = [];
+      for (const f of files) ready.push(await prepareImage(f));
+      const uploaded = await uploadImages(ready);
       patch(segment.uid, {
         images: [...segment.images, ...uploaded.map((u) => ({ path: u.path, filename: u.filename, altText: '' }))],
       });
     } catch (err) {
       setError(err.message);
     }
+    setPreparing(false);
   };
 
   const save = async (asDraft) => {
@@ -218,9 +225,10 @@ export default function Composer({ me, onChange }) {
                   <button
                     className="image-upload-item image-add"
                     aria-label="Add images"
+                    disabled={preparing}
                     onClick={() => fileInputs.current[seg.uid]?.click()}
                   >
-                    +
+                    {preparing ? '…' : '+'}
                   </button>
                 )}
                 <input

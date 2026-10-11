@@ -1,7 +1,7 @@
 const { BskyAgent, RichText } = require('@atproto/api');
 const fs = require('fs');
 const path = require('path');
-const { CKC_HANDLE, normalizeHandle } = require('./config');
+const { CKC_HANDLE, MAX_IMAGE_BYTES, normalizeHandle } = require('./config');
 
 const PUBLIC_API = 'https://public.api.bsky.app/xrpc';
 
@@ -68,6 +68,11 @@ async function uploadBlob(agent, filePath) {
   const mimeType = MIME_BY_EXT[path.extname(filePath).toLowerCase()];
   if (!mimeType) throw new Error(`Unsupported image type: ${path.basename(filePath)}`);
   const bytes = fs.readFileSync(filePath);
+  if (bytes.length > MAX_IMAGE_BYTES) {
+    throw new Error(
+      `Image ${path.basename(filePath)} is ${(bytes.length / 1e6).toFixed(1)}MB; Bluesky's limit is 1MB. Edit the post and replace it with a smaller image.`
+    );
+  }
   const response = await agent.uploadBlob(bytes, { encoding: mimeType });
   return response.data.blob;
 }
@@ -118,4 +123,4 @@ async function sendPost(post) {
   }
 }
 
-module.exports = { resolveHandle, getProfile, getAgent, sendPost, clearAgent };
+module.exports = { resolveHandle, getProfile, getAgent, sendPost, clearAgent, uploadBlob };
