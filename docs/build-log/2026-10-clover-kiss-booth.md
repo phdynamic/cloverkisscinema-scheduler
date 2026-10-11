@@ -17,5 +17,15 @@
 - fixed: multer limit off-by-one — exactly 1,000,000 B was rejected
 - why: supersedes the 5MB decision (decisions/bluesky-and-media.md)
 - tested: ad-hoc server checks (8) + real-browser checks (7) pass; earlier ad-hoc suites (35, 13) re-run pass; scripts not kept in repo
+- merged: PR #4 (247a5ed)
 - live-tested: no
 - unverified: Bluesky accepting a shrunk image on a real post; GIFs >1MB refused; shrunk PNGs lose transparency
+
+## 2026-10-11 — single-post composer
+- removed: "Add to thread", seat number and reorder/remove controls from the composer (Composer.jsx)
+- changed: server allows 1 post per save (validate.js MAX_SEGMENTS 25→1); templates load first post only
+- kept: Thread table + sendPost; legacy multi-post threads still send and can be trimmed in the composer
+- why: developer request (decisions/ui-and-interaction.md)
+- tested: ad-hoc server (5) + real-browser (8) checks pass; earlier ad-hoc suites (35, 13, 8) re-run pass; scripts not kept in repo
+- live-tested: no
+- unverified: whether any legacy multi-post threads exist in production

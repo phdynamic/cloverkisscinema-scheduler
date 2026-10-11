@@ -47,7 +47,7 @@ export default function Composer({ me, onChange }) {
       return;
     }
     const template = location.state?.template;
-    if (template) setThreads(template.threads.map((t) => newSegment(t.text || '')));
+    if (template) setThreads([newSegment(template.threads[0]?.text || '')]);
     const date = search.get('date');
     if (date) setWhen(`${date}T09:00`);
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -169,36 +169,45 @@ export default function Composer({ me, onChange }) {
         </div>
       )}
 
+      {threads.length > 1 && (
+        <div className="note info" style={{ marginBottom: 14 }}>
+          Multi-post threads are no longer supported. Remove the extra posts (×) to save changes to this one.
+        </div>
+      )}
+
       <div className="composer-form">
         {threads.map((seg, index) => {
           const count = graphemeLength(seg.text);
           return (
             <div key={seg.uid} className="seat">
-              <div className="seat-header">
-                <span className="seat-number display">{index + 1}</span>
-                <span className="label">{threads.length > 1 ? `Post ${index + 1} of ${threads.length}` : 'Post'}</span>
-                <div className="seat-tools">
-                  <button className="btn-small" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Move up">
-                    ↑
-                  </button>
-                  <button
-                    className="btn-small"
-                    onClick={() => move(index, 1)}
-                    disabled={index === threads.length - 1}
-                    aria-label="Move down"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    className="btn-danger btn-small"
-                    onClick={() => setThreads((prev) => prev.filter((t) => t.uid !== seg.uid))}
-                    disabled={threads.length <= 1}
-                    aria-label="Remove this post"
-                  >
-                    ×
-                  </button>
+              {/* Posts are single now; this header only shows for a legacy multi-post thread. */}
+              {threads.length > 1 && (
+                <div className="seat-header">
+                  <span className="seat-number display">{index + 1}</span>
+                  <span className="label">{threads.length > 1 ? `Post ${index + 1} of ${threads.length}` : 'Post'}</span>
+                  <div className="seat-tools">
+                    <button className="btn-small" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Move up">
+                      ↑
+                    </button>
+                    <button
+                      className="btn-small"
+                      onClick={() => move(index, 1)}
+                      disabled={index === threads.length - 1}
+                      aria-label="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className="btn-danger btn-small"
+                      onClick={() => setThreads((prev) => prev.filter((t) => t.uid !== seg.uid))}
+                      disabled={threads.length <= 1}
+                      aria-label="Remove this post"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <textarea
                 value={seg.text}
@@ -263,10 +272,6 @@ export default function Composer({ me, onChange }) {
           );
         })}
 
-        <div>
-          <button onClick={() => setThreads((prev) => [...prev, newSegment()])}>+ Add to thread</button>
-        </div>
-
         <div className="schedule-row">
           <div className="form-group">
             <label className="label" htmlFor="when">
@@ -304,7 +309,7 @@ export default function Composer({ me, onChange }) {
                 className="card"
                 style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 8, textTransform: 'none', letterSpacing: 0 }}
                 onClick={() => {
-                  setThreads(t.threads.map((s) => newSegment(s.text || '')));
+                  setThreads([newSegment(t.threads[0]?.text || '')]);
                   setTemplates(null);
                 }}
               >

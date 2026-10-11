@@ -11,3 +11,8 @@
 - date: 2026-04-02 · status: active · commit: 891698d
 - what: reverted the translucent dark inputs introduced in df64fa6; kept through the 2026-10-10 restyle (`client/src/index.css` comment)
 - why: commit message — better readability
+
+## Single posts only; no multi-post threads
+- date: 2026-10-11 · status: active
+- what: composer has no "Add to thread", seat number or reorder/remove controls; `server/lib/validate.js` allows 1 post per save (`MAX_SEGMENTS = 1`); templates load their first post only. The `Thread` table and `sendPost` are unchanged, so existing multi-post threads still send. Opening one in the composer shows the thread header and a note; remove the extra posts to save
+- why: developer request 2026-10-11 (not otherwise recorded in repo)
