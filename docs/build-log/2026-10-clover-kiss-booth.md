@@ -11,6 +11,7 @@
 
 ## 2026-10-11 — docs structure + image-limit fix
 - added: docs/ per comments.md, backfilled from git history; root CLAUDE.md pointer to docs/CLAUDE.md (approved deviation)
+- changed: repo renamed skyqueue → cloverkisscinema-scheduler (developer-confirmed); Railway repointed; npm package name unchanged
 - fixed: images 1–5MB passed upload then failed at send; Bluesky caps images at 1,000,000 B (lexicon, @atproto/api 0.13.35)
 - changed: browser shrinks images to ≤950KB JPEG before upload (client/src/imageUtils.js); server cap 1,000,000 B (uploads.js), save-time check (validate.js), readable send-time error (atproto.js)
 - fixed: multer limit off-by-one — exactly 1,000,000 B was rejected

@@ -20,7 +20,7 @@ Read this first. Documentation rules for agents: [`comments.md`](../comments.md)
 
 ## Concept
 Self-hosted Bluesky post scheduler for @cloverkisscinema.club. Approved crew sign in with Bluesky and submit posts; the manager approves them; the scheduler posts them.
-Repo `github.com/phdynamic/skyqueue` (package name `skyqueue`); deploys to Railway at `scheduler.cloverkisscinema.club`.
+Repo `github.com/phdynamic/cloverkisscinema-scheduler` (renamed from `skyqueue` on 2026-10-11; npm package name is still `skyqueue`); deploys to Railway at `scheduler.cloverkisscinema.club`.
 
 ## Architecture notes (rarely change)
 - One Node process: Express API + built Vite/React SPA (`dist/`) + node-cron sender. Entry `server/index.js`.
