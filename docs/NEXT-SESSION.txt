@@ -1,0 +1,4 @@
+NEXT SESSION
+============
+As of 2026-10-11: docs/ populated and the image-limit fix are on branch claude/bluesky-post-scheduler-taMyF, PR to main pending merge.
+Next: merge the PR, then work through the live checks in TESTING-OWED.md (do not restate them here).
