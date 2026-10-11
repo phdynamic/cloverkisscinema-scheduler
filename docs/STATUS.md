@@ -1,6 +1,6 @@
 # Status
 
-Snapshot as of 2026-10-11 (branch `claude/bluesky-post-scheduler-taMyF`; `main` at `6f836cc`).
+Snapshot as of 2026-10-11 (`main` at `247a5ed`).
 
 ## Built
 - Express API + built React SPA in one process; SQLite via Prisma (9 models, 3 migrations)

@@ -17,5 +17,6 @@
 - fixed: multer limit off-by-one — exactly 1,000,000 B was rejected
 - why: supersedes the 5MB decision (decisions/bluesky-and-media.md)
 - tested: ad-hoc server checks (8) + real-browser checks (7) pass; earlier ad-hoc suites (35, 13) re-run pass; scripts not kept in repo
+- merged: PR #4 (247a5ed)
 - live-tested: no
 - unverified: Bluesky accepting a shrunk image on a real post; GIFs >1MB refused; shrunk PNGs lose transparency
