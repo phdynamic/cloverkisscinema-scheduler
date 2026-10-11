@@ -1,6 +1,6 @@
 # The Projection Booth — agent entry point
 
-> SKELETON — concept and principles pending developer confirmation.
+Read this first. Documentation rules for agents: [`comments.md`](../comments.md) (repo root).
 
 ## Reading order
 1. This file
@@ -19,7 +19,15 @@
 | Recurring technical lessons | [standing-rules.md](standing-rules.md) |
 
 ## Concept
-TBD
+Self-hosted Bluesky post scheduler for @cloverkisscinema.club. Approved crew sign in with Bluesky and submit posts; the manager approves them; the scheduler posts them.
+Repo `github.com/phdynamic/skyqueue` (package name `skyqueue`); deploys to Railway at `scheduler.cloverkisscinema.club`.
 
 ## Architecture notes (rarely change)
-TBD
+- One Node process: Express API + built Vite/React SPA (`dist/`) + node-cron sender. Entry `server/index.js`.
+- DB: SQLite via Prisma (`prisma/schema.prisma`, migrations applied on start by `railway.toml`).
+- Storage: Railway volume at `/data` → DB `/data/db/skyqueue.db`, uploads `/data/uploads`.
+- Auth: Bluesky OAuth (`server/lib/oauth.js`, `routes/auth.js`); DB-backed session cookie; guest list = `User` table; manager = `ADMIN_HANDLE`/`ADMIN_DID`.
+- Posting: one account from env (`CKC_HANDLE`, `CKC_APP_PASSWORD`) via `@atproto/api` (`server/lib/atproto.js`).
+- Post states: `draft → pending → scheduled → sent | failed`, plus `rejected`. Cron sends only `scheduled`.
+- Frontend: `client/src/` (components per page; `labels.js` holds the theatre-flavoured names).
+- Env vars: see `.env.example`.
