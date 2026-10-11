@@ -1,0 +1,3 @@
+NEXT SESSION
+============
+Where development was left off. Live checks owed: see TESTING-OWED.md (do not restate here).
