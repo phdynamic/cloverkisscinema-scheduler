@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { UPLOAD_DIR, MAX_IMAGE_BYTES } = require('./config');
 
-const MAX_SEGMENTS = 25;
+const MAX_SEGMENTS = 1; // single posts only; multi-post threads are not supported
 const MAX_CHARS = 300;
 const MAX_IMAGES = 4;
 const MAX_ALT = 2000;
@@ -23,7 +23,7 @@ function bad(message) {
 // text or an image. Drafts may be incomplete.
 function normalizeThreads(threads, { strict }) {
   if (!Array.isArray(threads) || threads.length === 0) throw bad('At least one post is required');
-  if (threads.length > MAX_SEGMENTS) throw bad(`A thread can have at most ${MAX_SEGMENTS} posts`);
+  if (threads.length > MAX_SEGMENTS) throw bad('Multi-post threads are not supported; each post is a single post');
 
   return threads.map((t, i) => {
     const text = typeof t.text === 'string' ? t.text : '';
