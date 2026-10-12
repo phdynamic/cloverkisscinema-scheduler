@@ -1,4 +1,4 @@
 NEXT SESSION
 ============
-As of 2026-10-11: PR #4 merged (docs/ structure + image-limit fix); nothing in flight.
+As of 2026-10-12: check GitHub for open PRs (in-flight work); nothing else is pending.
 Next: work through the live checks in TESTING-OWED.md (do not restate them here).

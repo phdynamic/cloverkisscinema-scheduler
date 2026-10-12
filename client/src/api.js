@@ -46,7 +46,8 @@ export const getPost = (id) => request(`/posts/${id}`);
 export const createPost = (data) => request('/posts', json('POST', data));
 export const updatePost = (id, data) => request(`/posts/${id}`, json('PUT', data));
 export const deletePost = (id) => request(`/posts/${id}`, { method: 'DELETE' });
-export const approvePost = (id, scheduledAt) => request(`/posts/${id}/approve`, json('POST', { scheduledAt }));
+// options: { postNow: true } or { scheduledAt: ISO string }
+export const approvePost = (id, options = {}) => request(`/posts/${id}/approve`, json('POST', options));
 export const rejectPost = (id, note) => request(`/posts/${id}/reject`, json('POST', { note }));
 
 // Templates

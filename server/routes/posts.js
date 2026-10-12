@@ -71,11 +71,24 @@ function resolveStatus(req, requested, scheduledAt, existing) {
     if (status === 'scheduled' && !scheduledAt) throw bad('Pick a date and time to schedule');
     return status;
   }
-  // Members: draft, or submit for approval. They can never schedule directly,
-  // and any change to an already-approved post sends it back for re-approval.
+  // Members: draft, or submit for approval. They can never schedule directly, never
+  // choose a time (the manager assigns one, or posts now), and any change to an
+  // already-approved post sends it back for re-approval.
   if (requested === 'draft') return 'draft';
-  if (!scheduledAt) throw bad('Pick a date and time to submit this post');
   return 'pending';
+}
+
+// Only the manager decides when a post goes out. `postNow` means "right now" using the
+// server's clock (the sender runs on it), not the browser's.
+const wantsNow = (req) => isAdmin(req) && req.body?.postNow === true;
+
+function resolveSchedule(req, existing) {
+  if (!isAdmin(req)) return null; // crew-supplied times are ignored
+  if (wantsNow(req)) return new Date();
+  if (req.body.scheduledAt !== undefined) {
+    return req.body.scheduledAt ? parseDate(req.body.scheduledAt, 'Schedule') : null;
+  }
+  return existing ? existing.scheduledAt : null;
 }
 
 // Everyone who has authored a post (manager only), for the "by" filter.
@@ -146,8 +159,8 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const scheduledAt = req.body.scheduledAt ? parseDate(req.body.scheduledAt, 'Schedule') : null;
-    const status = resolveStatus(req, req.body.status, scheduledAt, null);
+    const scheduledAt = resolveSchedule(req, null);
+    const status = resolveStatus(req, wantsNow(req) ? 'scheduled' : req.body.status, scheduledAt, null);
     const threads = normalizeThreads(req.body.threads, { strict: status !== 'draft' });
     const account = await getCkcAccount();
 
@@ -177,15 +190,10 @@ router.put('/:id', async (req, res) => {
     if (existing.status === 'sent') throw bad("This post has already premiered and can't be edited");
     if (!isAdmin(req) && existing.status === 'failed') throw bad('Only the manager can retry a failed post');
 
-    const scheduledAt =
-      req.body.scheduledAt !== undefined
-        ? req.body.scheduledAt
-          ? parseDate(req.body.scheduledAt, 'Schedule')
-          : null
-        : existing.scheduledAt;
+    const scheduledAt = resolveSchedule(req, existing);
 
     // Members editing an approved post must re-submit it, so default to "pending".
-    const requested = req.body.status ?? (isAdmin(req) ? undefined : 'pending');
+    const requested = wantsNow(req) ? 'scheduled' : req.body.status ?? (isAdmin(req) ? undefined : 'pending');
     const status = resolveStatus(req, requested, scheduledAt, existing);
     const threads = req.body.threads
       ? normalizeThreads(req.body.threads, { strict: status !== 'draft' })
@@ -211,7 +219,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Manager approves a pending post (optionally choosing a new time).
+// Manager approves a pending post: post now, or assign a time. (A time requested by an
+// older, pre-change submission is used if neither is given.)
 router.post('/:id/approve', async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(403).json({ error: 'Manager access only' });
@@ -219,13 +228,16 @@ router.post('/:id/approve', async (req, res) => {
     if (!post) return;
     if (post.status !== 'pending') throw bad('Only posts awaiting approval can be approved');
 
-    const scheduledAt = req.body?.scheduledAt
-      ? parseDate(req.body.scheduledAt, 'Schedule')
-      : post.scheduledAt;
-    if (!scheduledAt) throw bad('Pick a date and time');
-    if (scheduledAt < new Date(Date.now() - 60 * 1000) && !req.body?.scheduledAt) {
+    const chosen = req.body?.scheduledAt;
+    const scheduledAt = wantsNow(req)
+      ? new Date()
+      : chosen
+        ? parseDate(chosen, 'Schedule')
+        : post.scheduledAt;
+    if (!scheduledAt) throw bad('Pick a time, or choose Post now');
+    if (!wantsNow(req) && !chosen && scheduledAt < new Date(Date.now() - 60 * 1000)) {
       return res.status(409).json({
-        error: 'The requested time has already passed. Pick a new time.',
+        error: 'The time they requested has already passed. Pick a new time or post now.',
         code: 'PAST_TIME',
       });
     }
