@@ -29,5 +29,6 @@ Repo `github.com/phdynamic/cloverkisscinema-scheduler` (renamed from `skyqueue` 
 - Auth: Bluesky OAuth (`server/lib/oauth.js`, `routes/auth.js`); DB-backed session cookie; guest list = `User` table; manager = `ADMIN_HANDLE`/`ADMIN_DID`.
 - Posting: one account from env (`CKC_HANDLE`, `CKC_APP_PASSWORD`) via `@atproto/api` (`server/lib/atproto.js`).
 - Post states: `draft → pending → scheduled → sent | failed`, plus `rejected`. Cron sends only `scheduled`.
+- Timing: crew never choose a time; the manager approves with Post now or an assigned time (or posts/schedules directly).
 - Frontend: `client/src/` (components per page; `labels.js` holds the theatre-flavoured names).
 - Env vars: see `.env.example`.

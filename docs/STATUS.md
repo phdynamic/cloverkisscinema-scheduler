@@ -1,12 +1,13 @@
 # Status
 
-Snapshot as of 2026-10-11 (`main` at `247a5ed`).
+Snapshot as of 2026-10-12.
 
 ## Built
 - Express API + built React SPA in one process; SQLite via Prisma (9 models, 3 migrations)
 - node-cron sender: every minute, sends only status `scheduled`
 - Bluesky OAuth sign-in; DB-backed sessions; guest list (User table); manager via ADMIN_HANDLE/ADMIN_DID
 - Post flow: draft → pending → scheduled → sent/failed; rejected-with-note; author/approver snapshots
+- Timing: crew submit with no time; manager approves with Post now or an assigned time, or posts/schedules directly, and can edit before it goes out
 - Posting: single posts (no threads in composer or API), ≤4 images/post, alt text, auto link/mention facets; single account from env; existing multi-post threads still send
 - Images: browser shrinks to ≤950KB JPEG before upload; server cap 1,000,000 B; checked again at save and at send
 - UI: Login, Queue (6 status tabs, by-author filter), Composer, Calendar, Templates, Manager's Office
@@ -16,6 +17,7 @@ Snapshot as of 2026-10-11 (`main` at `247a5ed`).
 - Automated tests in repo: none. CI: none.
 - Test evidence recorded in repo: none.
 - Image shrink + 1MB limit: ad-hoc checks run 2026-10-11, scripts not kept
+- Manager-assigned timing: ad-hoc server + browser checks run 2026-10-12, scripts not kept
 - Live: real post send from the CKC account: not confirmed
 
 ## Not built / not present

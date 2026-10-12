@@ -14,3 +14,8 @@
 - date: 2026-10-10 · status: active · commit: 4f3933a
 - what: DID, handle and display name stored on `Post` (`submittedBy*`, `reviewedBy*`); manager-scheduled posts are stamped as approved by the manager
 - why: code comment — credit survives removal from the guest list or a handle change
+
+## Crew submit without a time; the manager assigns a time or posts now
+- date: 2026-10-12 · status: active · refines "Approval workflow and status model"
+- what: crew composer has no time field; the server ignores any crew-supplied `scheduledAt` / `postNow`. Approving needs `{ postNow: true }` or `{ scheduledAt }` (no time → 400). The manager can also Post now or Schedule from the composer, Post now from the queue, and edit a pending or scheduled post (Save changes keeps its status). `postNow` uses the server clock. A crew edit of an approved post returns it to `pending` and clears the time. Older submissions that carry a requested time are still honoured (past → 409 `PAST_TIME`, approve with a new time or Post now)
+- why: developer request 2026-10-12 — the manager may not review before a crew-chosen time (not otherwise recorded in repo)

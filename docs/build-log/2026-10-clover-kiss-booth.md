@@ -29,3 +29,13 @@
 - tested: ad-hoc server (5) + real-browser (8) checks pass; earlier ad-hoc suites (35, 13, 8) re-run pass; scripts not kept in repo
 - live-tested: no
 - unverified: whether any legacy multi-post threads exist in production
+
+## 2026-10-12 — manager-assigned timing
+- removed: time picker from the crew composer; crew-supplied time/postNow now ignored server-side
+- changed: approve takes `{ postNow }` or `{ scheduledAt }` (Queue dialog: Post now / Schedule for, next full hour prefilled); manager composer gets Post now + Save changes (status kept); queue "Post now" and composer use server clock (`postNow`)
+- changed: crew edit of an approved post → pending, time cleared
+- kept: older submissions with a requested time still approve (past → 409 PAST_TIME)
+- why: decisions/data-model-and-workflow.md
+- tested: ad-hoc server + browser (26 new); earlier suites (35, 13, 8, 13) re-run pass after 3 intentional expectation changes (crew submit needs no time; approvals need an explicit time; past-time case built in DB); scripts not kept in repo
+- live-tested: no
+- unverified: crew + manager flow in production; Post now delay (sender runs each minute)
