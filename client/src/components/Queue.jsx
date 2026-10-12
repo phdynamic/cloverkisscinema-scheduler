@@ -26,6 +26,7 @@ export default function Queue({ me, counts, onChange }) {
   const [error, setError] = useState('');
   const [dialog, setDialog] = useState(null); // { type: 'approve' | 'reject', post }
   const [when, setWhen] = useState('');
+  const [approveMode, setApproveMode] = useState('schedule'); // 'schedule' | 'now'
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -82,11 +83,18 @@ export default function Queue({ me, counts, onChange }) {
   };
   const postNow = (post) => {
     if (!confirm('Send this to Bluesky within the next minute?')) return;
-    run(() => updatePost(post.id, { status: 'scheduled', scheduledAt: new Date().toISOString() }));
+    run(() => updatePost(post.id, { postNow: true }));
   };
 
+  const nextHour = () => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return toLocalInput(d.toISOString());
+  };
   const openApprove = (post) => {
-    setWhen(toLocalInput(post.scheduledAt && new Date(post.scheduledAt) > new Date() ? post.scheduledAt : undefined));
+    setApproveMode('schedule');
+    // Older submissions may carry a requested time; otherwise suggest the next full hour.
+    setWhen(post.scheduledAt && new Date(post.scheduledAt) > new Date() ? toLocalInput(post.scheduledAt) : nextHour());
     setDialog({ type: 'approve', post });
   };
   const openReject = (post) => {
@@ -225,7 +233,13 @@ export default function Queue({ me, counts, onChange }) {
                     by {authorOf(p) ? `@${authorOf(p).handle}` : 'unknown author'}
                   </span>
                 )}
-                <span>{formatWhen(p.sentAt || p.scheduledAt)}</span>
+                <span>
+                  {p.sentAt
+                    ? formatWhen(p.sentAt)
+                    : p.scheduledAt
+                      ? formatWhen(p.scheduledAt)
+                      : `${p.status === 'pending' ? 'submitted' : 'created'} ${formatWhen(p.createdAt)}`}
+                </span>
                 {['scheduled', 'sent', 'failed'].includes(p.status) && approverOf(p) && (
                   <span title={p.reviewedAt ? `Approved ${formatWhen(p.reviewedAt)}` : undefined}>
                     approved by @{approverOf(p).handle}
@@ -258,23 +272,54 @@ export default function Queue({ me, counts, onChange }) {
       {dialog?.type === 'approve' && (
         <Modal title="Approve this post" onClose={() => setDialog(null)}>
           <p style={{ marginBottom: 12 }}>“{dialog.post.threads[0]?.text?.slice(0, 120)}”</p>
-          <div className="form-group">
-            <label className="label" htmlFor="approve-when">
-              Goes out at
+          <p className="muted" style={{ marginBottom: 10, fontSize: '0.95rem' }}>
+            Want to change the wording first? Cancel and use Edit, then approve.
+          </p>
+          <div className="radio-row">
+            <label>
+              <input type="radio" name="approve-mode" checked={approveMode === 'now'} onChange={() => setApproveMode('now')} />
+              Post now (goes out within a minute)
             </label>
-            <input id="approve-when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            <label>
+              <input
+                type="radio"
+                name="approve-mode"
+                checked={approveMode === 'schedule'}
+                onChange={() => setApproveMode('schedule')}
+              />
+              Schedule for
+            </label>
           </div>
-          {dialog.post.scheduledAt && new Date(dialog.post.scheduledAt) < new Date() && (
-            <div className="note info">The time they asked for has already passed. Pick a new one.</div>
+          <div className="form-group" style={{ marginTop: 8 }}>
+            <label className="label" htmlFor="approve-when">
+              Goes out at (your local time)
+            </label>
+            <input
+              id="approve-when"
+              type="datetime-local"
+              value={when}
+              disabled={approveMode !== 'schedule'}
+              onChange={(e) => setWhen(e.target.value)}
+            />
+          </div>
+          {dialog.post.scheduledAt && (
+            <div className="note info">They suggested {formatWhen(dialog.post.scheduledAt)} (an older submission).</div>
           )}
           <div className="button-row">
             <button onClick={() => setDialog(null)}>Cancel</button>
             <button
               className="btn-primary"
-              disabled={busy || !when}
-              onClick={() => run(() => approvePost(dialog.post.id, fromLocalInput(when)))}
+              disabled={busy || (approveMode === 'schedule' && !when)}
+              onClick={() =>
+                run(() =>
+                  approvePost(
+                    dialog.post.id,
+                    approveMode === 'now' ? { postNow: true } : { scheduledAt: fromLocalInput(when) }
+                  )
+                )
+              }
             >
-              Approve
+              {approveMode === 'now' ? 'Approve and post now' : 'Approve and schedule'}
             </button>
           </div>
         </Modal>

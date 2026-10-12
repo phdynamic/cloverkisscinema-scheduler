@@ -90,27 +90,32 @@ export default function Composer({ me, onChange }) {
     setPreparing(false);
   };
 
-  const save = async (asDraft) => {
+  // mode: 'submit' (crew) | 'draft' | 'schedule' | 'now' | 'keep' (manager editing, status unchanged)
+  const save = async (mode) => {
     setError('');
-    const scheduledAt = fromLocalInput(when);
-    if (!asDraft && !scheduledAt) {
-      setError('Pick a date and time first.');
+    // Crew never choose a time: the manager assigns one, or posts now.
+    const scheduledAt = isAdmin ? fromLocalInput(when) : null;
+    if (mode === 'schedule' && !scheduledAt) {
+      setError('Pick a date and time first, or use Post now.');
       return;
     }
+    if (mode === 'now' && !confirm('Post this to Bluesky now?')) return;
     setSaving(true);
     try {
       const payload = {
-        status: asDraft ? 'draft' : isAdmin ? 'scheduled' : 'pending',
-        scheduledAt,
         threads: threads.map((t) => ({
           text: t.text,
           images: t.images.map((img) => ({ path: img.path, altText: img.altText || '' })),
         })),
       };
-      if (id) await updatePost(id, payload);
-      else await createPost(payload);
+      if (mode === 'draft') payload.status = 'draft';
+      if (mode === 'submit') payload.status = 'pending';
+      if (mode === 'schedule') payload.status = 'scheduled';
+      if (mode === 'now') payload.postNow = true;
+      if (isAdmin) payload.scheduledAt = scheduledAt;
+      const saved = id ? await updatePost(id, payload) : await createPost(payload);
       onChange();
-      navigate(`/?tab=${payload.status}`);
+      navigate(`/?tab=${saved.status}`);
     } catch (err) {
       setError(err.message);
     }
@@ -160,7 +165,12 @@ export default function Composer({ me, onChange }) {
       )}
       {status === 'scheduled' && !isAdmin && (
         <div className="note info" style={{ marginBottom: 14 }}>
-          This post is approved. Saving changes sends it back to the manager for approval.
+          This post is approved. Saving changes sends it back to the manager, who will set the time again.
+        </div>
+      )}
+      {status === 'pending' && isAdmin && (
+        <div className="note info" style={{ marginBottom: 14 }}>
+          This post is awaiting approval. Schedule or Post now approves it; Save changes keeps it waiting.
         </div>
       )}
       {error && (
@@ -272,28 +282,46 @@ export default function Composer({ me, onChange }) {
           );
         })}
 
-        <div className="schedule-row">
-          <div className="form-group">
-            <label className="label" htmlFor="when">
-              {isAdmin ? 'Goes out at' : 'Requested time'} (your local time)
-            </label>
-            <input id="when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+        {isAdmin && (
+          <div className="schedule-row">
+            <div className="form-group">
+              <label className="label" htmlFor="when">
+                Goes out at (your local time) — or leave empty and use Post now
+              </label>
+              <input id="when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="button-row">
-          <button className="btn-primary" onClick={() => save(false)} disabled={saving}>
-            {saving ? 'Saving…' : isAdmin ? 'Schedule' : editingApproved ? 'Re-submit for approval' : 'Submit for approval'}
-          </button>
-          <button onClick={() => save(true)} disabled={saving}>
-            Save rough cut
-          </button>
+          {isAdmin ? (
+            <>
+              <button className="btn-primary" onClick={() => save('schedule')} disabled={saving}>
+                {saving ? 'Saving…' : 'Schedule'}
+              </button>
+              <button className="btn-amber" onClick={() => save('now')} disabled={saving}>
+                Post now
+              </button>
+              <button onClick={() => save(id ? 'keep' : 'draft')} disabled={saving}>
+                {id ? 'Save changes' : 'Save rough cut'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-primary" onClick={() => save('submit')} disabled={saving}>
+                {saving ? 'Saving…' : editingApproved ? 'Re-submit for approval' : 'Submit for approval'}
+              </button>
+              <button onClick={() => save('draft')} disabled={saving}>
+                Save rough cut
+              </button>
+            </>
+          )}
           <button onClick={openTemplates}>Load template</button>
           <button onClick={saveTemplate}>Save as template</button>
         </div>
         {!isAdmin && (
           <p className="muted" style={{ fontSize: '0.95rem' }}>
-            The manager reviews everything before it goes out, and you'll see their note here if it comes back.
+            The manager reviews everything and picks when it goes out. You'll see their note here if it comes back.
           </p>
         )}
       </div>

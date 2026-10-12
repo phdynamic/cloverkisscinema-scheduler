@@ -765,3 +765,25 @@ a:focus-visible {
     display: none;
   }
 }
+
+/* Radio choices (approve dialog) */
+input[type='radio'] {
+  width: auto;
+  padding: 0;
+  margin-right: 8px;
+  accent-color: var(--green);
+}
+.radio-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radio-row label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
