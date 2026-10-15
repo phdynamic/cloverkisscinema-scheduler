@@ -787,3 +787,23 @@ input:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Premiered posts show in full: whole text, plus any images. */
+.post-card .post-preview.full {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+.post-card .preview-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.post-card .preview-images img {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 6px;
+  object-fit: cover;
+}

@@ -45,3 +45,8 @@
 - why: decisions/bluesky-and-media.md
 - tested: module loads; failure path returns without throwing; real DM not sent
 - live-tested: no
+
+## 2026-10-15 — premiered previews in full
+- changed: Premiered cards in `Queue.jsx` show the whole text (line breaks kept) and all images as thumbnails; other tabs keep the 100-char preview
+- tested: client builds; not viewed in a browser
+- live-tested: no
