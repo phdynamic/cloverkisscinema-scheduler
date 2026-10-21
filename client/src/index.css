@@ -21,9 +21,10 @@
   --teal: #2ec4a0;
   --coral: #ff7a66;
   --radius: 14px;
-  --display: 'Archivo', 'Arial Black', Impact, sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --display: var(--sans);
+  --mono: var(--sans);
+  --serif: var(--sans);
 }
 
 html {
@@ -46,17 +47,14 @@ a {
 /* ── Type helpers ── */
 .display {
   font-family: var(--display);
-  font-stretch: 125%;
-  font-weight: 900;
-  letter-spacing: -0.01em;
-  line-height: 1;
+  font-weight: 700;
+  line-height: 1.15;
 }
 .eyebrow,
 .label {
   font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 .eyebrow {
   color: var(--amber);
@@ -110,10 +108,8 @@ select option {
 /* ── Buttons ── */
 button {
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
   cursor: pointer;
   padding: 10px 16px;
   border-radius: 8px;
@@ -170,41 +166,10 @@ a:focus-visible {
   position: relative;
   background: var(--bg);
   border-radius: var(--radius);
-  padding: 34px 20px 30px;
+  padding: 20px 20px 16px;
   text-align: center;
   margin-bottom: 8px;
 }
-.marquee::before,
-.marquee::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 14px;
-  background-image: radial-gradient(circle, var(--amber) 3.5px, transparent 4.5px);
-  background-size: 28px 14px;
-  background-repeat: repeat-x;
-  background-position: 6px 0;
-  animation: chase 2.4s steps(2) infinite;
-}
-.marquee::before {
-  top: 8px;
-}
-.marquee::after {
-  bottom: 8px;
-}
-@keyframes chase {
-  50% {
-    opacity: 0.55;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .marquee::before,
-  .marquee::after {
-    animation: none;
-  }
-}
-
 .marquee .logo {
   width: 64px;
   height: 64px;
@@ -214,34 +179,17 @@ a:focus-visible {
   object-fit: cover;
 }
 .marquee.hero .logo {
-  width: 150px;
-  height: 150px;
+  width: 96px;
+  height: 96px;
   border-width: 4px;
-  box-shadow: 0 0 40px rgba(46, 196, 160, 0.25);
 }
 .marquee h1 {
-  font-size: clamp(1.9rem, 7vw, 3.6rem);
+  font-size: clamp(1.4rem, 4vw, 2rem);
   margin: 6px 0 4px;
 }
 .marquee.hero h1 {
-  font-size: clamp(2.2rem, 9vw, 5rem);
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
   margin-top: 18px;
-}
-.marquee .tagline {
-  font-size: 1.15rem;
-  color: var(--text);
-}
-.marquee .stats {
-  margin-top: 14px;
-  font-family: var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-.marquee .stats b {
-  color: var(--amber);
-  font-weight: 600;
 }
 
 .app-top {
@@ -291,8 +239,6 @@ a:focus-visible {
 .site-nav a {
   font-family: var(--mono);
   font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
   color: var(--cream);
   text-decoration: none;
   padding-bottom: 3px;
@@ -393,8 +339,6 @@ a:focus-visible {
   margin-bottom: 6px;
   font-family: var(--mono);
   font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
   color: var(--muted);
 }
 .post-card .post-preview {
@@ -440,8 +384,6 @@ a:focus-visible {
   border: 1.5px solid currentColor;
   font-family: var(--mono);
   font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 .badge-pending {
   color: var(--amber);
@@ -651,7 +593,6 @@ a:focus-visible {
 }
 .day-number {
   font-family: var(--display);
-  font-stretch: 125%;
   font-weight: 900;
   font-size: 1.1rem;
   display: block;
@@ -786,4 +727,24 @@ input[type='radio'] {
 input:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Premiered posts show in full: whole text, plus any images. */
+.post-card .post-preview.full {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+.post-card .preview-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.post-card .preview-images img {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 6px;
+  object-fit: cover;
 }

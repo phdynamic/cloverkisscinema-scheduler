@@ -135,7 +135,7 @@ export default function Composer({ me, onChange }) {
     if (!name?.trim()) return;
     try {
       await createTemplate({ name: name.trim(), threads: threads.map((t, i) => ({ position: i, text: t.text })) });
-      alert('Saved to the Prop Room.');
+      alert('Saved as a template.');
     } catch (err) {
       setError(err.message);
     }
@@ -149,8 +149,8 @@ export default function Composer({ me, onChange }) {
     <div>
       <div className="page-header">
         <div>
-          <p className="eyebrow">{id ? `Editing · ${STATUS_LABELS[status] || ''}` : 'New post'}</p>
-          <h2 className="display">The Booth</h2>
+          {id && <p className="eyebrow">{`Status: ${STATUS_LABELS[status] || ''}`}</p>}
+          <h2 className="display">{id ? 'Edit post' : 'New post'}</h2>
         </div>
         <span className="posting-as">
           <span className="label">Posting as</span> @{me.postingAs}
@@ -222,7 +222,7 @@ export default function Composer({ me, onChange }) {
               <textarea
                 value={seg.text}
                 onChange={(e) => patch(seg.uid, { text: e.target.value })}
-                placeholder="What's showing?"
+                placeholder="Write your post"
                 aria-label={`Text for post ${index + 1}`}
               />
               <div className={`char-count ${count > 300 ? 'over' : count > 280 ? 'warn' : ''}`}>{count}/300</div>
@@ -303,7 +303,7 @@ export default function Composer({ me, onChange }) {
                 Post now
               </button>
               <button onClick={() => save(id ? 'keep' : 'draft')} disabled={saving}>
-                {id ? 'Save changes' : 'Save rough cut'}
+                {id ? 'Save changes' : 'Save draft'}
               </button>
             </>
           ) : (
@@ -312,7 +312,7 @@ export default function Composer({ me, onChange }) {
                 {saving ? 'Saving…' : editingApproved ? 'Re-submit for approval' : 'Submit for approval'}
               </button>
               <button onClick={() => save('draft')} disabled={saving}>
-                Save rough cut
+                Save draft
               </button>
             </>
           )}
@@ -329,7 +329,7 @@ export default function Composer({ me, onChange }) {
       {templates && (
         <Modal title="Load template" onClose={() => setTemplates(null)}>
           {templates.length === 0 ? (
-            <p className="muted">The Prop Room is empty.</p>
+            <p className="muted">No templates saved yet.</p>
           ) : (
             templates.map((t) => (
               <button

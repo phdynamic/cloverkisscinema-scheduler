@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require('../lib/db');
 const { getCkcAccount } = require('../lib/ckc');
 const { normalizeThreads, parseDate, bad } = require('../lib/validate');
+const { notifyPendingPost } = require('../lib/notify');
 
 const STATUSES = ['draft', 'pending', 'scheduled', 'sent', 'failed', 'rejected'];
 
@@ -16,7 +17,7 @@ const postInclude = {
 const isAdmin = (req) => req.user.role === 'admin';
 
 // Author/approver details are copied onto the post so credit survives if the
-// person is later removed from the guest list (or changes their handle).
+// person is later removed from the approved-users list (or changes their handle).
 const authorFields = (u) => ({
   submittedById: u.id,
   submittedByDid: u.did,
@@ -177,6 +178,7 @@ router.post('/', async (req, res) => {
       include: postInclude,
     });
     res.status(201).json(post);
+    if (status === 'pending') notifyPendingPost(post); // not for drafts
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -187,7 +189,7 @@ router.put('/:id', async (req, res) => {
     const existing = await loadPost(req, res);
     if (!existing) return;
 
-    if (existing.status === 'sent') throw bad("This post has already premiered and can't be edited");
+    if (existing.status === 'sent') throw bad("This post has already been posted and can't be edited");
     if (!isAdmin(req) && existing.status === 'failed') throw bad('Only the manager can retry a failed post');
 
     const scheduledAt = resolveSchedule(req, existing);
@@ -213,7 +215,10 @@ router.put('/:id', async (req, res) => {
       await tx.post.update({ where: { id: existing.id }, data });
     });
 
-    res.json(await prisma.post.findUnique({ where: { id: existing.id }, include: postInclude }));
+    const saved = await prisma.post.findUnique({ where: { id: existing.id }, include: postInclude });
+    res.json(saved);
+    // Only when it newly lands in the review queue (not for edits to one already waiting).
+    if (!isAdmin(req) && status === 'pending' && existing.status !== 'pending') notifyPendingPost(saved);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

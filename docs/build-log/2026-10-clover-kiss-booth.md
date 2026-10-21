@@ -39,3 +39,20 @@
 - tested: ad-hoc server + browser (26 new); earlier suites (35, 13, 8, 13) re-run pass after 3 intentional expectation changes (crew submit needs no time; approvals need an explicit time; past-time case built in DB); scripts not kept in repo
 - live-tested: no
 - unverified: crew + manager flow in production; Post now delay (sender runs each minute)
+
+## 2026-10-15 — DM the manager on new submissions
+- added: `server/lib/notify.js`; called from `routes/posts.js` after create/PUT when a crew post lands in `pending`
+- why: decisions/bluesky-and-media.md
+- tested: module loads; failure path returns without throwing; real DM not sent
+- live-tested: no
+
+## 2026-10-15 — premiered previews in full
+- changed: Premiered cards in `Queue.jsx` show the whole text (line breaks kept) and all images as thumbnails; other tabs keep the 100-char preview
+- tested: client builds; not viewed in a browser
+- live-tested: no
+
+## 2026-10-21 — plain labels, calmer styling
+- changed: renamed themed labels app-wide (client, OAuth client name shown on Bluesky's consent screen, server log, error strings, DM text); CSS simplified
+- why: decisions/ui-and-interaction.md
+- tested: client builds; login and queue screenshots checked; other pages not re-screenshotted
+- live-tested: no

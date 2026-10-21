@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { getMe, getPostCounts, logout } from './api';
-import { Logo, LoreStats } from './components/Marquee';
+import { Logo } from './components/Marquee';
 import Login from './components/Login';
 import Queue from './components/Queue';
 import Composer from './components/Composer';
@@ -33,7 +33,7 @@ export default function App() {
   if (me === undefined) {
     return (
       <div className="page">
-        <p className="empty">Dimming the lights…</p>
+        <p className="empty">Loading…</p>
       </div>
     );
   }
@@ -54,15 +54,14 @@ export default function App() {
         <div className="app-top">
           <Logo />
           <div className="titles">
-            <p className="eyebrow">Now showing, at sundown</p>
             <h1 className="display">
-              <span className="green">The Projection</span> <span className="cream">Booth</span>
+              <span className="green">Clover Kiss Cinema</span> <span className="cream">Post Scheduler</span>
             </h1>
           </div>
           <div className="user-chip">
             <div className="who">
               <div className="cream">{user.displayName || user.handle}</div>
-              <div className="muted">{isAdmin ? 'The manager' : 'Crew'}</div>
+              <div className="muted">{isAdmin ? 'Manager' : 'Crew'}</div>
             </div>
             {user.avatar ? <img src={user.avatar} alt="" /> : <div className="avatar" />}
             <button
@@ -76,26 +75,25 @@ export default function App() {
             </button>
           </div>
         </div>
-        <LoreStats />
       </header>
 
       <nav className="site-nav" aria-label="Main">
-        <NavLink to="/" end title="Everything in the pipeline">
-          Now Showing
+        <NavLink to="/" end title="All posts and their status">
+          Posts
           {isAdmin && counts.pending > 0 && <span className="nav-count">{counts.pending}</span>}
         </NavLink>
         <NavLink to="/compose" title="Write a new post">
-          The Booth
+          New post
         </NavLink>
         <NavLink to="/calendar" title="Calendar view">
-          Showtimes
+          Calendar
         </NavLink>
         <NavLink to="/templates" title="Saved post templates">
-          Prop Room
+          Templates
         </NavLink>
         {isAdmin && (
           <NavLink to="/admin" title="Manage who can sign in">
-            Manager's Office
+            Approved users
           </NavLink>
         )}
       </nav>

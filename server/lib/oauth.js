@@ -37,7 +37,7 @@ async function build() {
   return new NodeOAuthClient({
     clientMetadata: {
       client_id: `${BASE_URL}/client-metadata.json`,
-      client_name: 'Clover Kiss Cinema Projection Booth',
+      client_name: 'Clover Kiss Cinema Post Scheduler',
       client_uri: BASE_URL,
       redirect_uris: [`${BASE_URL}/auth/callback`],
       scope: 'atproto',

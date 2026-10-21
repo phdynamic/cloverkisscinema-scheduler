@@ -23,3 +23,11 @@
 - what: browser re-encodes oversize photos to JPEG ≤950KB (≤2000px edge) before upload (`client/src/imageUtils.js`); server rejects >1,000,000 B at upload, at post save, and with a readable error at send. GIFs over 1MB are refused, not re-encoded; shrunk PNGs are flattened to white
 - why: `app.bsky.embed.images` lexicon in installed `@atproto/api` 0.13.35 — `maxSize: 1000000` per image, max 4 images. Shrinking rather than reverting to a 1MB reject, because 0c00a74 recorded that phone photos exceed 1MB
 - confidence: limit verified in the lexicon; live-tested: no
+
+## Manager is DMed from the Clover Kiss account when a post needs approval
+- date: 2026-10-15 · status: active
+- what: `server/lib/notify.js` sends a chat DM (via `withProxy('bsky_chat', 'did:web:api.bsky.chat')`) to every `admin` User when a post newly becomes `pending` (create, or crew edit/resubmit from another status). Drafts and edits to an already-pending post send nothing. Failure is logged and never blocks the save
+- why: user request — manager may not open the app before a post is due; DMs only for submissions
+- confidence: `getConvoForMembers`/`sendMessage` present in installed `@atproto/api` 0.13.35; live-tested: no
+- live-tested: no
+- unverified: the app password needs "Allow access to your direct messages"; the manager's DM settings must allow messages from accounts they don't follow (else getConvoForMembers fails, logged only)

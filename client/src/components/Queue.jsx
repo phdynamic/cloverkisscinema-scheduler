@@ -173,7 +173,7 @@ export default function Queue({ me, counts, onChange }) {
       <div className="page-header">
         <div>
           <p className="eyebrow">{isAdmin ? 'All crew' : 'Your posts'}</p>
-          <h2 className="display">Now Showing</h2>
+          <h2 className="display">Posts</h2>
         </div>
         <button className="btn-primary" onClick={() => navigate('/compose')}>
           + New post
@@ -249,7 +249,24 @@ export default function Queue({ me, counts, onChange }) {
                 {p.threads.length > 1 && <span>{p.threads.length}-post thread</span>}
                 {imageCount(p) > 0 && <span>{imageCount(p)} image{imageCount(p) > 1 ? 's' : ''}</span>}
               </div>
-              <div className="post-preview">{p.threads[0]?.text?.slice(0, 100) || '(image only)'}</div>
+              {p.status === 'sent' ? (
+                <>
+                  <div className="post-preview full">{p.threads[0]?.text || (imageCount(p) ? '' : '(empty)')}</div>
+                  {imageCount(p) > 0 && (
+                    <div className="preview-images">
+                      {p.threads.flatMap((t) => t.images || []).map((img) => (
+                        <img
+                          key={img.id ?? img.path}
+                          src={`/uploads/${img.filename || img.path.split('/').pop()}`}
+                          alt={img.altText || ''}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="post-preview">{p.threads[0]?.text?.slice(0, 100) || '(image only)'}</div>
+              )}
               {p.status === 'rejected' && p.reviewNote && (
                 <div className="note">
                   <span className="label">The manager says</span>
