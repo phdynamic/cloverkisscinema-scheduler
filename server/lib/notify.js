@@ -19,7 +19,7 @@ async function notifyPendingPost(post) {
     const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { did: true } });
     const who = post.submittedByHandle ? `@${post.submittedByHandle}` : 'Someone';
     const preview = (post.threads?.[0]?.text || '(image only)').slice(0, 120);
-    const text = `🎬 ${who} submitted a post for approval:\n\n“${preview}”\n\n${BASE_URL}/?tab=pending`;
+    const text = `${who} submitted a post for approval:\n\n“${preview}”\n\n${BASE_URL}/?tab=pending`;
     for (const { did } of admins) {
       if (did.startsWith('did:dev:')) continue; // local dev bypass user
       try {

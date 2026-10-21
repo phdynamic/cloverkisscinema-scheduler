@@ -16,3 +16,9 @@
 - date: 2026-10-11 · status: active
 - what: composer has no "Add to thread", seat number or reorder/remove controls; `server/lib/validate.js` allows 1 post per save (`MAX_SEGMENTS = 1`); templates load their first post only. The `Thread` table and `sendPost` are unchanged, so existing multi-post threads still send. Opening one in the composer shows the thread header and a note; remove the extra posts to save
 - why: developer request 2026-10-11 (not otherwise recorded in repo)
+
+## Plain labels and a calmer look (supersedes the cinema vocabulary and heavy styling)
+- date: 2026-10-21 · status: active
+- what: nav/tabs/buttons use plain names (Posts, New post, Calendar, Templates, Approved users; Awaiting approval / Scheduled / Drafts / Posted / Failed / Sent back; Save draft). Removed the marquee dot border and animation, the "lore" stats line, tagline and "Now showing" eyebrows. System sans font; no all-caps or wide letter-spacing; Google Fonts dropped. Palette and logo kept. Site name: "Clover Kiss Cinema Post Scheduler"
+- why: user request — tone down theming; buttons and labels should be self-explanatory
+- live-tested: no

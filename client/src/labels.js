@@ -1,11 +1,11 @@
-// Theatre-flavoured names for post states. Keys match the API's status values.
+// Display names for post states. Keys match the API's status values.
 export const STATUS_LABELS = {
-  pending: 'Awaiting the Manager',
-  scheduled: 'On the Marquee',
-  draft: 'Rough Cuts',
-  sent: 'Premiered',
-  failed: 'Projector Jam',
-  rejected: 'Sent Back',
+  pending: 'Awaiting approval',
+  scheduled: 'Scheduled',
+  draft: 'Drafts',
+  sent: 'Posted',
+  failed: 'Failed',
+  rejected: 'Sent back',
 };
 
 export const TAB_ORDER = ['pending', 'scheduled', 'draft', 'sent', 'failed', 'rejected'];

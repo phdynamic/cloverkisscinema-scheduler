@@ -15,27 +15,14 @@ export function Logo() {
   );
 }
 
-export function LoreStats() {
-  return (
-    <p className="stats">
-      <b>6</b> seats &nbsp; <b>1</b> screen (both sides) &nbsp; <b>1</b> microwave &nbsp; <b>0</b> refunds
-    </p>
-  );
-}
-
 // The big sign shown on the login screen.
 export function Hero() {
   return (
     <header className="marquee hero">
       <Logo />
-      <p className="eyebrow" style={{ marginTop: 18 }}>
-        Now showing, at sundown
-      </p>
-      <h1 className="display">
-        <span className="green">Clover</span> <span className="cream">Kiss Cinema</span>
+      <h1 className="display" style={{ marginTop: 18 }}>
+        <span className="green">Clover Kiss Cinema</span> <span className="cream">Post Scheduler</span>
       </h1>
-      <p className="tagline">The Projection Booth. Where posts wait their turn.</p>
-      <LoreStats />
     </header>
   );
 }

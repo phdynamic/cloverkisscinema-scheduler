@@ -52,8 +52,8 @@ export default function Calendar() {
     <div>
       <div className="page-header">
         <div>
-          <p className="eyebrow">The schedule</p>
-          <h2 className="display">Showtimes</h2>
+          <p className="eyebrow">Scheduled posts</p>
+          <h2 className="display">Calendar</h2>
         </div>
       </div>
 

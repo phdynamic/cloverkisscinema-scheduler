@@ -5,8 +5,8 @@ import { Hero } from './Marquee';
 
 const ERRORS = {
   not_approved:
-    "That Bluesky account isn't on the guest list yet. Ask the manager (@professorkiosk.wtf) to add you.",
-  cancelled: 'Sign-in was cancelled. No harm done.',
+    "That Bluesky account isn't on the approved list yet. Ask the manager (@professorkiosk.wtf) to add you.",
+  cancelled: 'Sign-in was cancelled.',
   failed: "Sign-in didn't go through. Please try again.",
 };
 
@@ -32,9 +32,9 @@ export default function Login() {
     <div className="page">
       <Hero />
       <div className="card login-card">
-        <p className="eyebrow">Staff entrance</p>
+        <p className="eyebrow">Sign in</p>
         <p style={{ marginTop: 8 }}>
-          Approved crew sign in with Bluesky. Your password stays with Bluesky; we only learn who you are.
+          Approved crew members sign in with Bluesky. Your password stays with Bluesky; we only learn who you are.
         </p>
         <form onSubmit={submit}>
           {error && (

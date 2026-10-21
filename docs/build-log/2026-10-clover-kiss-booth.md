@@ -50,3 +50,9 @@
 - changed: Premiered cards in `Queue.jsx` show the whole text (line breaks kept) and all images as thumbnails; other tabs keep the 100-char preview
 - tested: client builds; not viewed in a browser
 - live-tested: no
+
+## 2026-10-21 — plain labels, calmer styling
+- changed: renamed themed labels app-wide (client, OAuth client name shown on Bluesky's consent screen, server log, error strings, DM text); CSS simplified
+- why: decisions/ui-and-interaction.md
+- tested: client builds; login and queue screenshots checked; other pages not re-screenshotted
+- live-tested: no

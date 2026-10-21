@@ -17,7 +17,7 @@ const postInclude = {
 const isAdmin = (req) => req.user.role === 'admin';
 
 // Author/approver details are copied onto the post so credit survives if the
-// person is later removed from the guest list (or changes their handle).
+// person is later removed from the approved-users list (or changes their handle).
 const authorFields = (u) => ({
   submittedById: u.id,
   submittedByDid: u.did,
@@ -189,7 +189,7 @@ router.put('/:id', async (req, res) => {
     const existing = await loadPost(req, res);
     if (!existing) return;
 
-    if (existing.status === 'sent') throw bad("This post has already premiered and can't be edited");
+    if (existing.status === 'sent') throw bad("This post has already been posted and can't be edited");
     if (!isAdmin(req) && existing.status === 'failed') throw bad('Only the manager can retry a failed post');
 
     const scheduledAt = resolveSchedule(req, existing);

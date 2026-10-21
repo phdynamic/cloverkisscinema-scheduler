@@ -173,7 +173,7 @@ export default function Queue({ me, counts, onChange }) {
       <div className="page-header">
         <div>
           <p className="eyebrow">{isAdmin ? 'All crew' : 'Your posts'}</p>
-          <h2 className="display">Now Showing</h2>
+          <h2 className="display">Posts</h2>
         </div>
         <button className="btn-primary" onClick={() => navigate('/compose')}>
           + New post

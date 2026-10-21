@@ -1,4 +1,4 @@
-# The Projection Booth — agent entry point
+# Clover Kiss Cinema Post Scheduler — agent entry point
 
 Read this first. Documentation rules for agents: [`comments.md`](../comments.md) (repo root).
 

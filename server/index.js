@@ -72,7 +72,7 @@ const { startScheduler } = require('./cron');
 startScheduler();
 
 app.listen(PORT, () => {
-  console.log(`[server] Projection Booth running on port ${PORT} (${BASE_URL})`);
+  console.log(`[server] Post Scheduler running on port ${PORT} (${BASE_URL})`);
   ensureAdmin()
     .then((did) => did && console.log('[auth] Manager account ready'))
     .catch((err) => console.warn('[auth] Could not set up manager yet (will retry at login):', err.message));

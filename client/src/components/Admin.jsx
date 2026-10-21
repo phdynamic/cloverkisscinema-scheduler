@@ -35,7 +35,7 @@ export default function Admin() {
   };
 
   const remove = async (u) => {
-    if (!confirm(`Remove @${u.handle} from the guest list? They'll be signed out right away. Their posts stay, and keep their name on them.`)) return;
+    if (!confirm(`Remove @${u.handle} from the approved users? They'll be signed out right away. Their posts stay, and keep their name on them.`)) return;
     try {
       await removeUser(u.id);
       await load();
@@ -48,8 +48,8 @@ export default function Admin() {
     <div>
       <div className="page-header">
         <div>
-          <p className="eyebrow">Manager's office</p>
-          <h2 className="display">The Guest List</h2>
+          <p className="eyebrow">Manager only</p>
+          <h2 className="display">Approved users</h2>
         </div>
       </div>
 

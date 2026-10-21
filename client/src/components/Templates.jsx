@@ -36,7 +36,7 @@ export default function Templates({ me }) {
       <div className="page-header">
         <div>
           <p className="eyebrow">Reusable posts</p>
-          <h2 className="display">The Prop Room</h2>
+          <h2 className="display">Templates</h2>
         </div>
       </div>
 
@@ -49,7 +49,7 @@ export default function Templates({ me }) {
       {loading ? (
         <p className="empty">Loading…</p>
       ) : templates.length === 0 ? (
-        <p className="empty">Nothing on the shelves yet. Save a post as a template from The Booth.</p>
+        <p className="empty">No templates yet. Save a post as a template from the New post page.</p>
       ) : (
         templates.map((t) => (
           <div key={t.id} className="card post-card">
