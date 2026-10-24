@@ -56,3 +56,8 @@
 - why: decisions/ui-and-interaction.md
 - tested: client builds; login and queue screenshots checked; other pages not re-screenshotted
 - live-tested: no
+
+## 2026-10-24 — link to the main site
+- added: "Clover Kiss Cinema website ↗" (https://cloverkisscinema.club, new tab, `noopener noreferrer`) at the right of the nav and under the sign-in card
+- tested: client builds
+- live-tested: no

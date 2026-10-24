@@ -96,6 +96,9 @@ export default function App() {
             Approved users
           </NavLink>
         )}
+        <a href="https://cloverkisscinema.club" target="_blank" rel="noopener noreferrer" className="nav-external" title="Opens in a new tab">
+          Clover Kiss Cinema website ↗
+        </a>
       </nav>
 
       <main>

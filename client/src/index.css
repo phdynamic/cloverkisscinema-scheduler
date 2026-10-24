@@ -748,3 +748,12 @@ input:disabled {
   border-radius: 6px;
   object-fit: cover;
 }
+
+/* Link out to the main Clover Kiss Cinema site (opens in a new tab). */
+.site-nav a.nav-external {
+  margin-left: auto;
+}
+.login-site-link {
+  text-align: center;
+  margin-top: 18px;
+}

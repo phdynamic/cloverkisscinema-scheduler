@@ -64,6 +64,11 @@ export default function Login() {
           </button>
         </form>
       </div>
+      <p className="login-site-link">
+        <a href="https://cloverkisscinema.club" target="_blank" rel="noopener noreferrer">
+          Clover Kiss Cinema website ↗
+        </a>
+      </p>
     </div>
   );
 }
