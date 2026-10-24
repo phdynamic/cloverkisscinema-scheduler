@@ -343,7 +343,7 @@ export default function Composer({ me, onChange }) {
               >
                 <strong className="cream">{t.name}</strong>
                 <div className="muted" style={{ fontFamily: 'var(--serif)', fontWeight: 400 }}>
-                  {t.threads[0]?.text?.slice(0, 80) || '(empty)'}
+                  {t.threads[0]?.text || '(empty)'}
                 </div>
               </button>
             ))

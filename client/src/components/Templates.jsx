@@ -58,7 +58,7 @@ export default function Templates({ me }) {
                 {t.name}
               </div>
               <div className="post-preview muted">
-                {t.threads[0]?.text?.slice(0, 100) || '(empty)'}
+                {t.threads[0]?.text || '(empty)'}
                 {t.threads.length > 1 && ` (+${t.threads.length - 1} more)`}
               </div>
             </div>

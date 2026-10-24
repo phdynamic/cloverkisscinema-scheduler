@@ -343,11 +343,8 @@ a:focus-visible {
 }
 .post-card .post-preview {
   font-size: 1.1rem;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 .post-card .post-actions {
   display: flex;
@@ -729,13 +726,7 @@ input:disabled {
   cursor: not-allowed;
 }
 
-/* Premiered posts show in full: whole text, plus any images. */
-.post-card .post-preview.full {
-  display: block;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-  white-space: pre-wrap;
-}
+/* Posts always show in full: whole text, plus any images. */
 .post-card .preview-images {
   display: flex;
   flex-wrap: wrap;

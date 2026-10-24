@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPosts } from '../api';
 import { STATUS_LABELS, authorOf } from '../labels';
+import PostPreview from './PostPreview';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -121,7 +122,7 @@ export default function Calendar() {
                     <span>{new Date(p.scheduledAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
                     {authorOf(p) && <span>@{authorOf(p).handle}</span>}
                   </div>
-                  <div className="post-preview">{p.threads[0]?.text?.slice(0, 100) || '(image only)'}</div>
+                  <PostPreview post={p} />
                 </div>
               </button>
             ))
