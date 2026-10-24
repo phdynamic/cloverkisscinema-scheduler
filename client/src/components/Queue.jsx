@@ -12,6 +12,7 @@ import {
   approverOf,
 } from '../labels';
 import Modal from './Modal';
+import PostPreview from './PostPreview';
 
 export default function Queue({ me, counts, onChange }) {
   const isAdmin = me.user.role === 'admin';
@@ -249,24 +250,7 @@ export default function Queue({ me, counts, onChange }) {
                 {p.threads.length > 1 && <span>{p.threads.length}-post thread</span>}
                 {imageCount(p) > 0 && <span>{imageCount(p)} image{imageCount(p) > 1 ? 's' : ''}</span>}
               </div>
-              {p.status === 'sent' ? (
-                <>
-                  <div className="post-preview full">{p.threads[0]?.text || (imageCount(p) ? '' : '(empty)')}</div>
-                  {imageCount(p) > 0 && (
-                    <div className="preview-images">
-                      {p.threads.flatMap((t) => t.images || []).map((img) => (
-                        <img
-                          key={img.id ?? img.path}
-                          src={`/uploads/${img.filename || img.path.split('/').pop()}`}
-                          alt={img.altText || ''}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="post-preview">{p.threads[0]?.text?.slice(0, 100) || '(image only)'}</div>
-              )}
+              <PostPreview post={p} />
               {p.status === 'rejected' && p.reviewNote && (
                 <div className="note">
                   <span className="label">The manager says</span>
@@ -288,7 +272,9 @@ export default function Queue({ me, counts, onChange }) {
 
       {dialog?.type === 'approve' && (
         <Modal title="Approve this post" onClose={() => setDialog(null)}>
-          <p style={{ marginBottom: 12 }}>“{dialog.post.threads[0]?.text?.slice(0, 120)}”</p>
+          <div style={{ marginBottom: 12 }}>
+            <PostPreview post={dialog.post} />
+          </div>
           <p className="muted" style={{ marginBottom: 10, fontSize: '0.95rem' }}>
             Want to change the wording first? Cancel and use Edit, then approve.
           </p>

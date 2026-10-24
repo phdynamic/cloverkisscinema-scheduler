@@ -61,3 +61,9 @@
 - added: "Clover Kiss Cinema website ↗" (https://cloverkisscinema.club, new tab, `noopener noreferrer`) at the right of the nav and under the sign-in card
 - tested: client builds
 - live-tested: no
+
+## 2026-10-24 — full text and images in every post view
+- changed: new `PostPreview` component used by Posts (all tabs), Calendar day list and the approve dialog: whole text (line breaks kept, every segment of a legacy thread) plus all images; CSS line-clamp removed. Templates list, template picker and the manager DM no longer truncate
+- supersedes: 2026-10-15 "premiered previews in full" (now applies to every status)
+- tested: ad-hoc browser run — Pending tab, Scheduled tab, approve dialog and Calendar day list each show the end of a ~260-char two-paragraph post and its image; client builds. Not checked: Templates pages with long text, DM
+- live-tested: no
